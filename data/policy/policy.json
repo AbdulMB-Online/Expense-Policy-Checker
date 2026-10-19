@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "name": "Expense policy",
+  "currency": "USD",
+  "categories": {
+    "meals": {
+      "max_amount": "50.00",
+      "limit_basis": "per_expense",
+      "receipt": {"mode": "above_threshold", "threshold": "25.00"}
+    },
+    "hotel": {
+      "max_amount": "200.00",
+      "limit_basis": "per_night",
+      "receipt": {"mode": "always"},
+      "nights_required": true,
+      "max_nights_per_stay": null
+    },
+    "transport": {
+      "max_amount": "75.00",
+      "limit_basis": "per_expense",
+      "receipt": {"mode": "above_threshold", "threshold": "25.00"}
+    },
+    "office_supplies": {
+      "max_amount": "100.00",
+      "limit_basis": "per_expense",
+      "receipt": {"mode": "above_threshold", "threshold": "25.00"}
+    },
+    "other": {
+      "max_amount": null,
+      "limit_basis": "per_expense",
+      "receipt": {"mode": "unconfigured"},
+      "review_required": true
+    }
+  },
+  "restricted_categories": ["alcohol"],
+  "unknown_category_action": "review_required",
+  "submission": {"max_days_after_expense": 30, "inclusive": true},
+  "duplicates": {
+    "key_fields": ["employee", "date", "category", "amount", "nights"],
+    "require_different_ids": true,
+    "flag": "all_matches",
+    "classification": "suspected_duplicate"
+  },
+  "reporting": {
+    "collect_all_violations": true,
+    "flagged_amount_counting": "once_per_expense"
+  }
+}
