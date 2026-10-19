@@ -209,10 +209,10 @@ def test_all_matches_flags_every_duplicate_on_employee_date_amount_and_category(
     ]
     rule = DuplicateRule(configured)
     assert rule.evaluate(expenses[0], expenses) == (
-        "Duplicate of E-2 on employee, date, amount, and category."
+        "Duplicate of E-2 on employee, date, category, amount, nights."
     )
     assert rule.evaluate(expenses[1], expenses) == (
-        "Duplicate of E-1 on employee, date, amount, and category."
+        "Duplicate of E-1 on employee, date, category, amount, nights."
     )
     assert rule.evaluate(expenses[2], expenses) is None
     assert rule.evaluate(expenses[3], expenses) is None
@@ -231,20 +231,37 @@ def test_later_matches_leaves_the_first_record_unflagged():
     rule = DuplicateRule(configured)
     assert rule.evaluate(expenses[0], expenses) is None
     assert rule.evaluate(expenses[1], expenses) == (
-        "Duplicate of E-1, E-3 on employee, date, amount, and category."
+        "Duplicate of E-1, E-3 on employee, date, category, amount, nights."
     )
     assert rule.evaluate(expenses[2], expenses) == (
-        "Duplicate of E-1, E-2 on employee, date, amount, and category."
+        "Duplicate of E-1, E-2 on employee, date, category, amount, nights."
     )
 
 
-def test_different_nights_still_match_the_duplicate_key():
+def test_duplicate_key_uses_configured_fields():
+    configured = make_policy()
+    configured["duplicates"]["key_fields"] = ["employee"]
+    expenses = [
+        make_expense(id="E-1", amount=Decimal("10.00")),
+        make_expense(id="E-2", amount=Decimal("12.00")),
+        make_expense(id="E-3", amount=Decimal("10.00"), employee="Jordan"),
+    ]
+    rule = DuplicateRule(configured)
+    assert rule.evaluate(expenses[0], expenses) == "Duplicate of E-2 on employee."
+    assert rule.evaluate(expenses[2], expenses) is None
+
+
+def test_nights_is_compared_only_when_listed_in_key_fields():
     expenses = [
         make_expense(id="E-1", category="hotel", amount=Decimal("40.00"), nights=1),
         make_expense(id="E-2", category="hotel", amount=Decimal("40.00"), nights=2),
     ]
-    message = DuplicateRule(make_policy()).evaluate(expenses[0], expenses)
-    assert message == "Duplicate of E-2 on employee, date, amount, and category."
+    assert DuplicateRule(make_policy()).evaluate(expenses[0], expenses) is None
+    configured = make_policy()
+    configured["duplicates"]["key_fields"] = ["employee", "date", "amount", "category"]
+    assert DuplicateRule(configured).evaluate(expenses[0], expenses) == (
+        "Duplicate of E-2 on employee, date, amount, category."
+    )
 
 
 def test_same_id_follows_require_different_ids():
@@ -256,7 +273,7 @@ def test_same_id_follows_require_different_ids():
     assert DuplicateRule(required).evaluate(expenses[0], expenses) is None
     required["duplicates"]["require_different_ids"] = False
     assert DuplicateRule(required).evaluate(expenses[0], expenses) == (
-        "Duplicate of E-1 on employee, date, amount, and category."
+        "Duplicate of E-1 on employee, date, category, amount, nights."
     )
 
 
@@ -292,8 +309,8 @@ def test_run_all_maps_duplicate_violations_by_expense_id():
     ]
     violations = RulesEngine(make_policy()).run_all(expenses)
     assert set(violations) == {"E-6", "E-7"}
-    assert violations["E-6"] == ["Duplicate of E-7 on employee, date, amount, and category."]
-    assert violations["E-7"] == ["Duplicate of E-6 on employee, date, amount, and category."]
+    assert violations["E-6"] == ["Duplicate of E-7 on employee, date, category, amount, nights."]
+    assert violations["E-7"] == ["Duplicate of E-6 on employee, date, category, amount, nights."]
 
 
 def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
@@ -310,7 +327,9 @@ def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
         "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
         "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold.",
     ]
-    assert violations["EXP-006"] == ["Duplicate of EXP-007 on employee, date, amount, and category."]
+    assert violations["EXP-006"] == [
+        "Duplicate of EXP-007 on employee, date, category, amount, nights."
+    ]
     assert violations["EXP-014"] == [
         "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
         "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold.",

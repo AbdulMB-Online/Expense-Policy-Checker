@@ -86,29 +86,39 @@ class MissingReceiptRule(PolicyRule):
 
 
 class DuplicateRule(PolicyRule):
-    """Flag another expense with the same employee, date, amount, and category.
+    """Flag another expense that matches ``duplicates.key_fields``.
 
-    ``duplicates.flag`` chooses ``all_matches`` or ``later_matches``.
-    ``duplicates.require_different_ids`` controls whether the same id can match.
+    The default key is employee, date, amount, and category. A field such as
+    ``nights`` is compared only when the policy lists it. ``duplicates.flag``
+    chooses ``all_matches`` or ``later_matches``. ``duplicates.require_different_ids``
+    controls whether the same id can match.
     """
 
     def evaluate(self, expense, all_expenses: list) -> str | None:
         settings = self.policy_data.get("duplicates", {})
+        key_fields = self._key_fields()
         matches = [
             other
             for other in all_expenses
-            if other is not expense and _same_duplicate_key(expense, other)
+            if other is not expense and _same_duplicate_key(expense, other, key_fields)
         ]
         if settings.get("require_different_ids", True):
             matches = [other for other in matches if other.id != expense.id]
         if not matches:
             return None
         if settings.get("flag", "all_matches") == "later_matches":
-            first = next(item for item in all_expenses if _same_duplicate_key(expense, item))
+            first = next(
+                item for item in all_expenses if _same_duplicate_key(expense, item, key_fields)
+            )
             if first is expense:
                 return None
         other_ids = ", ".join(other.id for other in matches)
-        return f"Duplicate of {other_ids} on employee, date, amount, and category."
+        return f"Duplicate of {other_ids} on {', '.join(key_fields)}."
+
+    def _key_fields(self) -> list:
+        return self.policy_data.get("duplicates", {}).get(
+            "key_fields", ["employee", "date", "amount", "category"]
+        )
 
 
 class RulesEngine:
@@ -141,13 +151,8 @@ class RulesEngine:
         return violations
 
 
-def _same_duplicate_key(left: Expense, right: Expense) -> bool:
-    return (
-        left.employee == right.employee
-        and left.date == right.date
-        and left.amount == right.amount
-        and left.category == right.category
-    )
+def _same_duplicate_key(left: Expense, right: Expense, key_fields: list) -> bool:
+    return all(getattr(left, field) == getattr(right, field) for field in key_fields)
 
 
 def _decimal_money(value: str) -> Decimal:
