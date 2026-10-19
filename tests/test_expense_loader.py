@@ -144,6 +144,32 @@ def test_field_counts_blank_lines_and_multiline_descriptions(tmp_path, row):
     assert len(result.expenses) == 2
     assert result.expenses[0].description == row[5]
     assert [error.line_number for error in result.errors] == [5, 7]
+    assert [error.expense_id for error in result.errors] == ["E-1", "E-1"]
+
+
+@pytest.mark.parametrize("headers", [FIELDS, ("employee", "id", *FIELDS[2:])])
+@pytest.mark.parametrize("extra_fields", [False, True])
+@pytest.mark.parametrize("expense_id, expected_id", [(" EXP-123 ", "EXP-123"), ("  ", None)])
+def test_field_count_errors_preserve_available_id(tmp_path, row, headers, extra_fields, expense_id, expected_id):
+    row[0] = expense_id
+    record = dict(zip(FIELDS, row))
+    values = [record[field] for field in headers]
+    values = values + ["extra"] if extra_fields else values[:-1]
+    result = load_expenses(write_rows(tmp_path, [values], headers))
+    assert not result.expenses
+    error, = result.errors
+    assert error.line_number == 2
+    assert error.expense_id == expected_id
+    assert error.reasons == (f"Expected {len(headers)} fields, got {len(values)}",)
+
+
+def test_field_count_error_without_id_column_value(tmp_path, row):
+    headers = (*FIELDS[1:], "id")
+    result = load_expenses(write_rows(tmp_path, [row[1:]], headers))
+    assert not result.expenses
+    error, = result.errors
+    assert error.expense_id is None
+    assert error.reasons == ("Expected 9 fields, got 8",)
 
 
 @pytest.mark.parametrize("headers", [[], FIELDS[:-1], (*FIELDS, "currency"), (*FIELDS[:-1], "id")])

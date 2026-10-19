@@ -46,6 +46,7 @@ def load_expenses(path: str | Path) -> LoadResult:
         headers = next(reader, None)
         if headers is None or len(headers) != len(FIELDS) or set(headers) != set(FIELDS):
             raise ValueError(f"CSV headers must contain exactly: {', '.join(FIELDS)}")
+        id_index = headers.index("id")
         while True:
             line_number = reader.line_num + 1
             values = next(reader, None)
@@ -54,7 +55,8 @@ def load_expenses(path: str | Path) -> LoadResult:
             if not values:
                 continue
             if len(values) != len(headers):
-                errors.append(LoadError(line_number, None, (
+                expense_id = values[id_index].strip() or None if id_index < len(values) else None
+                errors.append(LoadError(line_number, expense_id, (
                     f"Expected {len(headers)} fields, got {len(values)}",
                 )))
                 continue
