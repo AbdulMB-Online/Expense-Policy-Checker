@@ -9,7 +9,7 @@ from pathlib import Path
 from loader.expense_loader import load_expenses
 
 
-def export_json(source: str | Path, output: str | Path, *, overwrite: bool = False) -> Path:
+def export_expenses(source: str | Path, output: str | Path, *, overwrite: bool = False) -> Path:
     """Export validated records and row errors; preserve exact decimal values."""
     source, output = Path(source), Path(output)
     if source.resolve() == output.resolve() or (output.exists() and source.samefile(output)):
@@ -40,7 +40,7 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Overwrite existing output")
     args = parser.parse_args()
     try:
-        output = export_json(args.input, args.output, overwrite=args.force)
+        output = export_expenses(args.input, args.output, overwrite=args.force)
     except (OSError, ValueError, UnicodeError, csv.Error) as error:
         parser.exit(1, f"Error: {error}\n")
     print(f"Exported expenses and validation errors to {output}")
