@@ -9,13 +9,37 @@ reports grouped by employee or policy rule for finance review.
 Requires Python 3.11+. Run from the repository root:
 
 ```sh
+python3 -m scripts.check_expenses
+```
+
+The tool automatically reads the stored expense CSV and policy JSON, then shows:
+
+```text
+EXPENSE POLICY CHECKER
+
+1. View report grouped by employee
+2. View report grouped by policy rule
+3. Exit
+
+Enter your choice:
+```
+
+Enter `1` or `2` to display a report and return to the menu. Enter `3` to exit.
+Invalid choices prompt again; Ctrl+C or end-of-input also exits. Both views use
+the same claims and policy loaded at startup; restart after updating the files.
+No file paths are requested, and viewing reports does not modify stored data.
+
+### JSON export
+
+To save policy results as JSON instead:
+
+```sh
 python3 -m scripts.export_policy_results --force
 ```
 
-This checks the existing claims in `data/expenses/sample_expenses.csv` using
-`data/policy/policy.json` and writes `data/out/policy_check_results.json`.
-`--force` replaces the existing generated results file. No input paths or
-interactive responses are required. The stored claims and policy are unchanged.
+This checks `data/expenses/sample_expenses.csv` using `data/policy/policy.json`
+and writes `data/out/policy_check_results.json`. `--force` replaces the existing
+generated results file. The stored claims and policy are unchanged.
 
 The JSON output contains:
 
@@ -73,34 +97,8 @@ those subtotals overlap and must not be added to obtain the overall total.
 Amounts are assumed to use the policy currency; currency
 conversion is outside this version.
 
-### Display both report views now
-
-The report API is available now. From the repository root, run this Python
-example to display both views using the stored files:
-
-```python
-from loader.expense_loader import load_expenses
-from loader.policy_loader import load_policy
-from reporting.violation_report import build_report, render_report
-from rules.engine import RulesEngine
-
-loaded = load_expenses("data/expenses/sample_expenses.csv")
-policy = load_policy("data/policy/policy.json")
-detailed = RulesEngine(policy).run_detailed(loaded.expenses)
-report = build_report(
-    loaded.expenses,
-    detailed,
-    currency=policy["currency"],
-    errors=loaded.errors,
-)
-
-print(render_report(report, group_by="employee"), end="")
-print(render_report(report, group_by="rule"), end="")
-```
-
-The reporting functions return data or text; the caller displays the text with
-`print`. They do not modify expense or policy files. A report with no flags says
-"No violations detected by the configured checks."
+Use menu choices `1` and `2` to view both groupings in one session. A report
+with no flags says "No violations detected by the configured checks."
 
 ## Tests
 
@@ -114,3 +112,5 @@ Report tests cover both groupings, every reason, exact totals, overlapping rule
 groups, rejected rows, empty results, and integration with the committed sample.
 Engine tests cover limit boundaries, receipt modes, configurable duplicates,
 multiple violations, and compatibility between the two result interfaces.
+CLI tests cover menu selection, repeated viewing, invalid choices, graceful
+exit, file errors, and the complete command using the stored sample.
