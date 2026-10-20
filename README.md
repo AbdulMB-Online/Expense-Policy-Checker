@@ -10,11 +10,12 @@ Requires Python 3.11+. Run from the repository root:
 
 ```sh
 python3 -m scripts.sample_data --force
-python3 -m scripts.export_json --force
+python3 -m scripts.export_expenses --force
+python3 -m scripts.export_policy --force
 ```
 
 These commands regenerate the sample CSV in `data/expenses/` and export validated
-records and row errors to `data/out/`. `--force` replaces existing files.
+expenses and policy to `data/out/`. `--force` replaces existing files.
 Policy files live in `data/policy/`.
 
 See the [loader guide](docs/loader.md) for usage, input contracts, validation
