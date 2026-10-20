@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from loader.expense_loader import Expense
 
-from .base import PolicyRule
+from .base import PolicyRule, PolicyViolation
 
 
 class AmountLimitRule(PolicyRule):
@@ -19,6 +19,9 @@ class AmountLimitRule(PolicyRule):
     total with ``max_amount * nights``. A null maximum means the category has
     no amount limit. The exact limit passes.
     """
+
+    rule_id = "amount_limit"
+    rule_name = "Amount limit"
 
     def evaluate(self, expense, all_expenses: list) -> str | None:
         settings = self.policy_data.get("categories", {}).get(expense.category)
@@ -64,6 +67,9 @@ class MissingReceiptRule(PolicyRule):
     flag a missing receipt.
     """
 
+    rule_id = "missing_receipt"
+    rule_name = "Missing receipt"
+
     def evaluate(self, expense, all_expenses: list) -> str | None:
         settings = self.policy_data.get("categories", {}).get(expense.category)
         if settings is None or expense.receipt_attached:
@@ -93,6 +99,9 @@ class DuplicateRule(PolicyRule):
     chooses ``all_matches`` or ``later_matches``. ``duplicates.require_different_ids``
     controls whether the same id can match.
     """
+
+    rule_id = "suspected_duplicate"
+    rule_name = "Suspected duplicate"
 
     def evaluate(self, expense, all_expenses: list) -> str | None:
         settings = self.policy_data.get("duplicates", {})
@@ -138,14 +147,30 @@ class RulesEngine:
         An amount exactly at its limit is not a violation. Expenses with no
         violations are omitted.
         """
+        return {
+            expense_id: [violation.reason for violation in violations]
+            for expense_id, violations in self.run_detailed(expenses).items()
+        }
+
+    def run_detailed(self, expenses) -> dict[str, list[PolicyViolation]]:
+        """Keep rule identities alongside reasons, without parsing message text.
+
+        Like ``run_all``, omit clean expenses and preserve expense/rule order.
+        Each rule is evaluated once per expense. New rules can supply stable
+        ``rule_id`` and ``rule_name`` attributes; class names are the fallback.
+        """
         expense_list = list(expenses)
-        violations: dict[str, list[str]] = {}
+        violations: dict[str, list[PolicyViolation]] = {}
         for expense in expense_list:
             messages = []
             for rule in self.rules:
                 message = rule.evaluate(expense, expense_list)
                 if message is not None:
-                    messages.append(message)
+                    messages.append(PolicyViolation(
+                        rule_id=getattr(rule, "rule_id", type(rule).__name__),
+                        rule_name=getattr(rule, "rule_name", type(rule).__name__),
+                        reason=message,
+                    ))
             if messages:
                 violations.setdefault(expense.id, []).extend(messages)
         return violations

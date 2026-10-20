@@ -12,7 +12,7 @@ import pytest
 
 from loader.expense_loader import Expense, load_expenses
 from loader.policy_loader import load_policy
-from rules.base import PolicyRule
+from rules.base import PolicyRule, PolicyViolation
 from rules.engine import AmountLimitRule, DuplicateRule, MissingReceiptRule, RulesEngine
 
 
@@ -339,4 +339,45 @@ def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
     assert set(violations) == {
         "EXP-003", "EXP-004", "EXP-005", "EXP-006", "EXP-007",
         "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
+    }
+
+
+def test_detailed_results_identify_rules_and_preserve_legacy_messages():
+    expenses = [
+        make_expense(id="CLEAN"),
+        make_expense(id="FLAGGED", amount=Decimal("75.00"), receipt_attached=False),
+    ]
+    engine = RulesEngine(make_policy())
+    detailed = engine.run_detailed(iter(expenses))
+    assert list(detailed) == ["FLAGGED"]
+    assert detailed["FLAGGED"] == [
+        PolicyViolation("amount_limit", "Amount limit", "Amount 75.00 exceeds the meals limit of 50.00 per expense."),
+        PolicyViolation("missing_receipt", "Missing receipt",
+                        "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold."),
+    ]
+    assert engine.run_all(expenses) == {
+        expense_id: [item.reason for item in items]
+        for expense_id, items in detailed.items()
+    }
+
+
+def test_detailed_results_support_new_rules_without_message_classification():
+    class CustomRule(PolicyRule):
+        def evaluate(self, expense, all_expenses):
+            return "A custom review reason."
+
+    class NamedRule(PolicyRule):
+        rule_id = "named_check"
+        rule_name = "Named check"
+
+        def evaluate(self, expense, all_expenses):
+            return "A custom review reason."
+
+    engine = RulesEngine(make_policy())
+    engine.rules = [CustomRule({}), NamedRule({})]
+    assert engine.run_detailed([make_expense()]) == {
+        "E-1": [
+            PolicyViolation("CustomRule", "CustomRule", "A custom review reason."),
+            PolicyViolation("named_check", "Named check", "A custom review reason."),
+        ],
     }
