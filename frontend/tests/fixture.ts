@@ -1,6 +1,8 @@
+export const demoReviewer = { id: "reviewer-finance", name: "Morgan Finance", role: "reviewer" as const };
 import type { Claim, Report } from "@/lib/report";
 
 export const alice: Claim = {
+  owner_id: "employee-alice", revision_id: "rev-alice", revision: 1, review_status: "submitted",
   id: "EXP-005", employee: "Alice Morgan", date: "2026-10-05", category: "meals",
   amount: "75.00", description: "Client lunch", receipt_attached: false, status: "flagged",
   submission_date: "2026-10-05", nights: null, origin: "file", receipt: null,
@@ -10,6 +12,7 @@ export const alice: Claim = {
   ],
 };
 const jordan: Claim = {
+  owner_id: "employee-jordan", revision_id: "rev-jordan", revision: 1, review_status: "submitted",
   id: "EXP-004", employee: "Jordan Lee", date: "2026-10-05", category: "transport",
   amount: "40.00", description: "Taxi to client", receipt_attached: false, status: "flagged",
   submission_date: "2026-10-05", nights: null, origin: "file", receipt: null,
@@ -17,6 +20,7 @@ const jordan: Claim = {
 };
 
 export const fixture: Report = {
+  run_id: "run-example", current_user: demoReviewer,
   generated_at: "2026-10-20T14:00:00Z", currency: "USD",
   dataset_id: null,
   sources: { expenses: "sample_expenses.csv", policy: "policy.json" },

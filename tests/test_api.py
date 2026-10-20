@@ -8,10 +8,10 @@ import shutil
 import httpx
 import pytest
 
-from api.app import create_app
-from api.sources import MAX_DATASETS, MAX_UPLOAD_BYTES
-from loader.expense_loader import FIELDS
-from scripts.sample_data import generate_sample
+from backend.api.app import create_app
+from backend.services.sources import MAX_UPLOAD_BYTES
+from backend.loader.expense_loader import FIELDS
+from backend.scripts.sample_data import generate_sample
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def get(app, path):
     async def request():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/demo/login", json={"user_id": "reviewer-finance"})
             return await client.get(path)
     return asyncio.run(request())
 
@@ -27,6 +28,7 @@ def get(app, path):
 def upload(app, files, dataset=None):
     async def request():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/demo/login", json={"user_id": "reviewer-finance"})
             return await client.post("/api/report/upload", files=files, data={"dataset": dataset} if dataset else {})
     return asyncio.run(request())
 
@@ -254,7 +256,7 @@ def test_uploaded_paths_are_only_display_names_and_need_no_stored_files(tmp_path
     result = upload(app, files)
     assert result.status_code == 200
     assert result.json()["sources"] == {"expenses": "claimed.csv", "policy": "rules.json"}
-    assert list(tmp_path.iterdir()) == []
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["artifacts"]
 
 
 def test_upload_limits_missing_inputs_and_snapshot_isolation(project):
@@ -263,7 +265,7 @@ def test_upload_limits_missing_inputs_and_snapshot_isolation(project):
     too_large = upload(app, {"expenses": ("large.csv", b"x" * (MAX_UPLOAD_BYTES + 1))})
     assert too_large.status_code == 413
     token = upload(app, uploaded_files(project)).json()["dataset_id"]
-    assert get(create_app(project), f"/api/report?dataset={token}").status_code == 404
+    assert get(create_app(project), f"/api/report?dataset={token}").status_code == 200
     assert get(app, "/api/report/download?dataset=missing").status_code == 404
     assert upload(app, {"policy": uploaded_files(project)["policy"]}, "missing").status_code == 404
     # Replacing both inputs needs no old counterpart, so a stale review token
@@ -271,13 +273,12 @@ def test_upload_limits_missing_inputs_and_snapshot_isolation(project):
     assert upload(app, uploaded_files(project), "missing").status_code == 200
 
 
-def test_snapshot_cache_is_bounded_and_expiry_is_actionable(project):
+def test_uploaded_snapshots_remain_available_after_many_uploads(project):
     app = create_app(project)
     files = uploaded_files(project)
     first = upload(app, files).json()["dataset_id"]
-    for _ in range(MAX_DATASETS):
+    for _ in range(21):
         last = upload(app, files).json()["dataset_id"]
-    expired = get(app, f"/api/report?dataset={first}")
-    assert expired.status_code == 404
-    assert "Upload them again" in expired.json()["detail"]
-    assert get(app, f"/api/report?dataset={last}").status_code == 200
+    restarted = create_app(project)
+    assert get(restarted, f"/api/report?dataset={first}").status_code == 200
+    assert get(restarted, f"/api/report?dataset={last}").status_code == 200

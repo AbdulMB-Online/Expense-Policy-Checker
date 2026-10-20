@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from loader.expense_loader import FIELDS, load_expenses
+from backend.loader.expense_loader import FIELDS, load_expenses
 
 
 def write_rows(tmp_path, rows, headers=FIELDS, encoding="utf-8"):

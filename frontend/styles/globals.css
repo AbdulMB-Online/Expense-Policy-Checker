@@ -359,3 +359,32 @@ a { text-decoration: none; color: inherit; }
   .nav-active::after { display: none; }
   .submitted-row .claim-category-icon { display: grid; flex-shrink: 0; }
 }
+
+/* Demo identity, saved inputs, and individual review controls. */
+.demo-login { width: min(720px, calc(100% - 40px)); margin: 10vh auto; }
+.demo-login h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); margin: 18px 0; }
+.demo-login > p { color: #aaa6ba; line-height: 1.6; }
+.demo-accounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 28px 0; }
+.demo-accounts button { height: auto; padding: 18px; align-items: flex-start; flex-direction: column; gap: 6px; }
+.demo-accounts button span { color: #aaa6ba; font-size: 12px; }
+.workspace-label button { border: 1px solid #494354; border-radius: 7px; padding: 7px 10px; color: #eee9ff; white-space: nowrap; }
+.saved-datasets { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; font-size: 13px; color: #bdb6cc; }
+.saved-datasets select, .owner-mapping select, .correction-form input, .correction-form select,
+.expense-review textarea { width: 100%; max-width: 100%; background: #191620; color: #f0ebfa; border: 1px solid #494354; border-radius: 7px; padding: 10px; }
+.saved-datasets select { width: min(480px, 100%); }
+.expense-review { border-top: 1px solid #494354; padding-top: 20px; margin-top: 18px; }
+.expense-review h3 { font-size: 15px; margin-bottom: 14px; }
+.expense-review h3 span, .review-history strong { text-transform: capitalize; }
+.expense-review label { display: block; font-size: 13px; margin: 12px 0 6px; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.review-history { padding-left: 20px; color: #c5bed0; font-size: 13px; }
+.review-history p { white-space: pre-wrap; margin: 8px 0; }
+.owner-mapping { display: grid; gap: 10px; }
+.correction-form fieldset { display: grid; border: 0; padding: 12px 0; }
+.correction-form legend { font-weight: 600; padding-top: 10px; }
+.correction-form p { color: #bdb6cc; font-size: 12px; margin: 12px 0; }
+@media (max-width: 760px) {
+  .demo-accounts { grid-template-columns: 1fr; }
+  .workspace-label { display: flex; margin-left: auto; }
+  .workspace-label .account-name, .workspace-label .status-dot { display: none; }
+}

@@ -1,5 +1,5 @@
-import Component from "@/components/ui/saa-s-template";
+import DemoSession from "@/components/demo-session";
 
 export default function Demo() {
-  return <Component />;
+  return <DemoSession />;
 }

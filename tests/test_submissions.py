@@ -11,10 +11,10 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from api.app import create_app
-from api.submissions import MAX_RECEIPT_BYTES
-from database.submissions import SubmissionStore
-from scripts.sample_data import generate_sample
+from backend.api.app import create_app
+from backend.services.validation import MAX_RECEIPT_BYTES
+from backend.database.submissions import SubmissionStore
+from backend.scripts.sample_data import generate_sample
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +26,7 @@ JPEG = b"\xff\xd8\xff\xe0receipt data\xff\xd9"
 def request(app, method, url, **kwargs):
     async def run():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/demo/login", json={"user_id": "reviewer-finance"})
             return await client.request(method, url, **kwargs)
     return asyncio.run(run())
 
@@ -155,6 +156,7 @@ def test_concurrent_retries_save_one_claim_and_receipt(project):
     payload = form(amount="50.00")
     async def run():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/demo/login", json={"user_id": "reviewer-finance"})
             return await asyncio.gather(*(client.post("/api/expenses", data=payload, files={"receipt": ("Receipt.pdf", PDF)}) for _ in range(3)))
     results = asyncio.run(run())
     assert all(result.status_code == 201 for result in results)
@@ -175,7 +177,7 @@ def test_invalid_form_fields_do_not_save_claim_or_receipt(project, changes, fiel
     assert result.status_code == 422
     assert field in result.json()["detail"]["fields"]
     assert report(app)["submissions"] == []
-    assert not (project / "artifacts/submissions.sqlite3").exists()
+    assert SubmissionStore(project).list("stored:USD") == ()
 
 
 def test_missing_fields_bad_request_keys_and_stale_context_are_rejected(project):
@@ -247,7 +249,7 @@ def test_uploaded_csv_workspace_is_separate_and_restored_after_reupload(project)
 
 def test_policy_failure_rolls_back_claim_and_receipt(project, monkeypatch):
     app = create_app(project)
-    from rules.engine import RulesEngine
+    from backend.rules.engine import RulesEngine
     def fail(*_args):
         raise ValueError("invalid engine configuration")
     with monkeypatch.context() as patch:
@@ -260,10 +262,11 @@ def test_storage_failure_has_retry_message_without_claim(project, monkeypatch):
     app = create_app(project)
     def fail(*_args):
         raise sqlite3.OperationalError("disk full")
-    monkeypatch.setattr(SubmissionStore, "_connect", fail)
-    result = submit(app)
-    assert result.status_code == 503
-    assert "retry" in result.json()["detail"]
+    with monkeypatch.context() as patch:
+        patch.setattr(SubmissionStore, "_connect", fail)
+        result = submit(app)
+        assert result.status_code == 503
+        assert "retry" in result.json()["detail"]
     assert report(app)["submissions"] == []
 
 

@@ -3,16 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Component from "@/components/ui/saa-s-template";
 import { money } from "@/lib/report";
-import { alice, fixture } from "./fixture";
+import { alice, fixture, demoReviewer } from "./fixture";
+
+vi.mock("@/lib/report", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/report")>();
+  return { ...actual, apiJson: (url: string, options?: RequestInit) => url === "/api/datasets" || url.includes("/history")
+    ? Promise.resolve([]) : actual.apiJson(url, options) };
+});
 
 function response(data: unknown = fixture) { return { ok: true, json: async () => data }; }
 
-beforeEach(() => { vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response())); });
+beforeEach(() => { localStorage.clear(); vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response())); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("dashboard", () => {
   it("loads real API data and shows employee groups", async () => {
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     expect(await screen.findByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
     expect(screen.getByText("Claims checked")).toBeInTheDocument();
     expect(screen.getAllByText("$115.00").length).toBeGreaterThan(0);
@@ -21,7 +27,7 @@ describe("dashboard", () => {
 
   it("switches to rules and shows every reason in the claim dialog", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("tab", { name: "By policy rule" }));
     await user.click(screen.getAllByRole("button", { name: "View expense EXP-005" })[0]);
@@ -34,7 +40,7 @@ describe("dashboard", () => {
 
   it("requests employee and debounced search filters", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.selectOptions(screen.getByLabelText("Filter by employee"), "Alice Morgan");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("employee=Alice+Morgan"), expect.anything()));
@@ -44,7 +50,7 @@ describe("dashboard", () => {
 
   it("expands rejected rows and policy details", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("button", { name: /A few records need fixing/ }));
     expect(screen.getByText("employee: required field is empty")).toBeInTheDocument();
@@ -57,7 +63,7 @@ describe("dashboard", () => {
   it("shows API errors and retries successfully", async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error("API offline"));
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("API offline");
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
@@ -65,7 +71,7 @@ describe("dashboard", () => {
 
   it("shows an empty search result without inventing claims", async () => {
     vi.mocked(fetch).mockResolvedValue(response({ ...fixture, summary: { ...fixture.summary, flagged_count: 0 }, groups: { employee: [], rule: [] } }) as Response);
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     expect(await screen.findByText("No flags from the active checks")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View expense EXP-005" })).not.toBeInTheDocument();
   });
@@ -80,7 +86,7 @@ describe("dashboard", () => {
     vi.mocked(fetch).mockImplementation(async (input) => String(input).includes("/download")
       ? { ok: true, blob: async () => new Blob(["Expense report"]) } as Response
       : response() as Response);
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("button", { name: "Export report" }));
     await waitFor(() => expect(clicked).toHaveBeenCalled());
@@ -89,7 +95,7 @@ describe("dashboard", () => {
 
   it("collapses groups and restores the claim rows", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     const group = await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(group);
     expect(group).toHaveAttribute("aria-expanded", "false");
@@ -100,7 +106,7 @@ describe("dashboard", () => {
 
   it("opens the responsive navigation and closes it after a destination", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
@@ -116,7 +122,7 @@ describe("dashboard", () => {
       groups: { ...fixture.groups, employee: [{ id: "Alice Morgan", name: "Alice Morgan", total_amount: "450.00", claims }] },
       claims,
     }) as Response);
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     expect(screen.queryByRole("button", { name: "View expense LONG-5" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show 2 more claims" }));
@@ -136,7 +142,7 @@ describe("dashboard", () => {
       if (url.includes("/download")) return { ok: true, blob: async () => new Blob(["Uploaded report"]) } as Response;
       return response(url.includes("/upload") || url.includes("dataset=review-token") ? uploaded : fixture) as Response;
     });
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     expect(screen.getByRole("button", { name: "Check selected files" })).toBeDisabled();
     await user.upload(screen.getByLabelText(/Expense CSV/), new File(["claims"], "October claims.csv", { type: "text/csv" }));
@@ -172,7 +178,7 @@ describe("dashboard", () => {
     const user = userEvent.setup();
     const uploaded = { ...fixture, dataset_id: "policy-context", sources: { ...fixture.sources, policy: "New limits.json" } };
     vi.mocked(fetch).mockImplementation(async (input) => response(String(input).includes("/upload") || String(input).includes("dataset=") ? uploaded : fixture) as Response);
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.upload(screen.getByLabelText(/Policy JSON/), new File(["{}"], "New limits.json", { type: "application/json" }));
     await user.click(screen.getByRole("button", { name: "Check selected files" }));
@@ -191,7 +197,7 @@ describe("dashboard", () => {
     const user = userEvent.setup();
     vi.mocked(fetch).mockImplementation(async (input) => String(input).includes("/upload")
       ? { ok: false, json: async () => ({ detail: "Bad.json: missing categories" }) } as Response : response() as Response);
-    render(<Component />);
+    render(<Component user={demoReviewer} />);
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.upload(screen.getByLabelText(/Policy JSON/), new File(["{}"], "Bad.json", { type: "application/json" }));
     await user.click(screen.getByRole("button", { name: "Check selected files" }));

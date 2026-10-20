@@ -5,11 +5,11 @@ import sys
 
 import pytest
 
-from loader.expense_loader import load_expenses
-from loader.policy_loader import load_policy
-from rules.engine import RulesEngine
-from scripts.generate_example_policy import generate_policy
-from scripts.sample_data import generate_sample, sample_rows
+from backend.loader.expense_loader import load_expenses
+from backend.loader.policy_loader import load_policy
+from backend.rules.engine import RulesEngine
+from backend.scripts.generate_example_policy import generate_policy
+from backend.scripts.sample_data import generate_sample, sample_rows
 
 
 def test_default_sample_preserves_scenarios(tmp_path):
@@ -157,7 +157,7 @@ def test_negative_count_does_not_create_file(tmp_path):
 
 def test_cli(tmp_path):
     path = tmp_path / "sample.csv"
-    command = [sys.executable, "-m", "scripts.sample_data", "--output", str(path)]
+    command = [sys.executable, "-m", "backend.scripts.sample_data", "--output", str(path)]
     success = subprocess.run(command, capture_output=True, text=True)
     assert success.returncode == 0
     assert "100 expense rows" in success.stdout

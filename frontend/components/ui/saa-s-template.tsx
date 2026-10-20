@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SourceFiles } from "@/components/source-files";
 import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-view";
-import { categoryLabel, dateLabel, money, readReport, reportQuery, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
+import { ExpenseReview } from "@/components/expense-review";
+import { categoryLabel, dateLabel, money, readReport, reportQuery, apiJson, type DemoUser, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
 
 // Adapted from the supplied SaaS template: fixed dark navigation, gradient hero,
 // soft light effects, responsive menu, and a white gradient primary action.
@@ -21,22 +22,23 @@ function Brand({ onHome }: { onHome: () => void }) {
   </a>;
 }
 
-const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, view, onView }: {
+const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, view, onView, user, onLogout }: {
   issueCount: number; openPolicy: () => void; openIssues: () => void;
   view: "review" | "submit"; onView: (view: "review" | "submit") => void;
+  user: DemoUser; onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   return <header className="site-header">
     <nav className="header-inner" aria-label="Main navigation">
-      <Brand onHome={() => onView("review")} />
+      <Brand onHome={() => onView(user.role === "reviewer" ? "review" : "submit")} />
       <div className={`navigation-links ${mobileOpen ? "is-open" : ""}`}>
-        <a href="#overview" className={view === "review" ? "nav-active" : ""} onClick={() => { onView("review"); setMobileOpen(false); }}>Reviewer view</a>
+        {user.role === "reviewer" && <a href="#overview" className={view === "review" ? "nav-active" : ""} onClick={() => { onView("review"); setMobileOpen(false); }}>Reviewer view</a>}
         <button className={view === "submit" ? "nav-active" : ""} aria-pressed={view === "submit"} onClick={() => { onView("submit"); setMobileOpen(false); }}>User view</button>
-        <a href="#reports" onClick={() => { onView("review"); setMobileOpen(false); }}>Reports</a>
+        {user.role === "reviewer" && <a href="#reports" onClick={() => { onView("review"); setMobileOpen(false); }}>Reports</a>}
         <button onClick={() => { openPolicy(); setMobileOpen(false); }}>Policy <ArrowUpRight size={12} /></button>
-        <button onClick={() => { openIssues(); setMobileOpen(false); }}>Input issues <span className="nav-count">{issueCount}</span></button>
+        {user.role === "reviewer" && <button onClick={() => { openIssues(); setMobileOpen(false); }}>Input issues <span className="nav-count">{issueCount}</span></button>}
       </div>
-      <div className="workspace-label"><span className="status-dot" />{view === "review" ? "Finance workspace" : "Employee workspace"}<span className="workspace-avatar">T4</span></div>
+      <div className="workspace-label"><span className="status-dot" /><span className="account-name">{user.name}</span><button onClick={onLogout}>Switch account</button></div>
       <button className="mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen}>
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
@@ -114,7 +116,7 @@ function ClaimGroup({ group, grouping, currency, onClaim }: { group: ReportGroup
   </section>;
 }
 
-function ClaimDetails({ claim, report, close }: { claim: Claim | null; report: Report | null; close: () => void }) {
+function ClaimDetails({ claim, report, close, user, onSaved }: { claim: Claim | null; report: Report | null; close: () => void; user: DemoUser; onSaved: (report: Report) => void }) {
   // Rule-group rows include only that rule's reasons; the detail view always
   // retrieves the full claim so reviewers can inspect every reason together.
   const fullClaim = report?.claims.find((item) => item.id === claim?.id) ?? claim;
@@ -128,6 +130,7 @@ function ClaimDetails({ claim, report, close }: { claim: Claim | null; report: R
       {fullClaim.receipt && <a className="receipt-download" href={fullClaim.receipt.download_url} download><ArrowDownToLine size={16} /><span>Download receipt: {fullClaim.receipt.name}</span></a>}
       <div className="detail-reasons"><h3>{fullClaim.violations.length ? "Why this claim needs attention" : "No violations detected by active checks"}</h3>{fullClaim.violations.map((violation, index) => <div className="detail-reason" key={`${violation.rule_id}-${index}`}><CircleAlert size={16} /><div><strong>{violation.rule_name}</strong><p>{violation.reason}</p></div></div>)}</div>
       <p className="review-guidance"><Info size={14} />Verify the supporting information before deciding how to handle this claim.</p>
+      <ExpenseReview key={fullClaim.revision_id} claim={fullClaim} report={report} user={user} onSaved={onSaved} />
     </>}
   </DialogContent></Dialog>;
 }
@@ -142,8 +145,8 @@ function PolicyDetails({ open, close, report }: { open: boolean; close: () => vo
   </DialogContent></Dialog>;
 }
 
-export default function Component() {
-  const [view, setView] = useState<"review" | "submit">("review");
+export default function Component({ user, onLogout = () => {} }: { user: DemoUser; onLogout?: () => void }) {
+  const [view, setView] = useState<"review" | "submit">(user.role === "reviewer" ? "review" : "submit");
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -152,7 +155,9 @@ export default function Component() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [refreshCount, setRefreshCount] = useState(0);
-  const [dataset, setDataset] = useState<string | null>(null);
+  const [dataset, setDataset] = useState<string | null>(() => localStorage.getItem(`expense-dataset-${user.id}`));
+  const [datasets, setDatasets] = useState<{ id: string; expenses: string; policy: string }[]>([]);
+  const [datasetsError, setDatasetsError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
@@ -161,6 +166,12 @@ export default function Component() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const issuesRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (dataset) localStorage.setItem(`expense-dataset-${user.id}`, dataset);
+    else localStorage.removeItem(`expense-dataset-${user.id}`);
+    apiJson<typeof datasets>("/api/datasets").then(setDatasets).catch((problem) => setDatasetsError(problem.message));
+  }, [dataset, user.id, user.role]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 250);
@@ -223,11 +234,13 @@ export default function Component() {
   const groups = report?.groups[grouping] ?? [];
   const pending = loading || uploading || submitting || search !== debouncedSearch;
   return <div className="app-shell">
-    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => setPolicyOpen(true)} openIssues={openIssues} view={view} onView={setView} />
+    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => setPolicyOpen(true)} openIssues={openIssues} view={view} onView={setView} user={user} onLogout={onLogout} />
     <main className="dashboard-container">
+      <label className="saved-datasets">Saved datasets<select aria-label="Saved datasets" disabled={pending} value={dataset ?? ""} onChange={(event) => { changeSource(null); setDataset(event.target.value || null); }}><option value="">Company sample</option>{datasets.map((item) => <option key={item.id} value={item.id}>{item.expenses} · {item.policy}</option>)}</select></label>
+      {datasetsError && <p role="alert">Could not load saved datasets: {datasetsError}</p>}
       {error && <div className="error-banner" role="alert"><CircleAlert size={18} /><div><strong>We couldn't load your report.</strong><p>{error}</p></div><Button variant="outline" onClick={refresh}>Try again</Button></div>}
-      <div hidden={view !== "submit"}><UserExpenseView key={dataset ?? "stored"} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} onReview={() => { setView("review"); setTimeout(() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" }), 0); }} /></div>
-      <div hidden={view !== "review"}>
+      <div hidden={view !== "submit"}><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} onReview={() => { setView("review"); setTimeout(() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" }), 0); }} /></div>
+      {user.role === "reviewer" && <div hidden={view !== "review"}>
       <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })} />
       <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading} />
       <Metrics report={error ? null : report} />
@@ -246,15 +259,15 @@ export default function Component() {
           <div className="workspace-footer"><ShieldCheck size={13} /><span>Automated checks are a first pass. Final decisions stay with your finance team.</span><span className="footer-reasons">{report?.overview.violation_count ?? "—"} total reasons</span></div>
         </Tabs>
       </section>
-      {!!report?.submissions.length && <SubmittedExpenses report={report} onClaim={setSelectedClaim} />}
+      {!!report?.claims.length && <SubmittedExpenses report={report} all onClaim={setSelectedClaim} />}
       <section ref={issuesRef} id="input-issues" className="input-issues">
         <button className="issues-heading" onClick={() => setIssuesOpen(!issuesOpen)} aria-expanded={issuesOpen}><span className="issues-icon"><CircleAlert size={19} /></span><span><strong>{report?.errors.length ? "A few records need fixing" : "Input records"} <Badge variant="outline">{report?.errors.length ?? 0}</Badge></strong><small>Rejected rows across the source file. Correct these before policy review.</small></span><span className="issues-toggle">{issuesOpen ? "Hide details" : "View details"}<ChevronDown size={15} className={issuesOpen ? "rotate-180" : ""} /></span></button>
         {issuesOpen && <div className="issues-list">{report?.errors.length ? report.errors.map((issue) => <div className="issue-row" key={issue.line_number}><span className="issue-line">Line {issue.line_number}</span><strong>{issue.expense_id ?? "ID unavailable"}</strong><span>{issue.reasons.join(" · ")}</span></div>) : <div className="no-issues"><Check size={15} />No rejected records in the source file.</div>}</div>}
       </section>
       <footer className="page-footer"><span><ShieldCheck size={13} />Expense Policy Checker</span><span>{report ? <>{report.sources.expenses}<span className="footer-dot">·</span>Updated {new Date(report.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</> : "Connecting to your expense records"}</span><button onClick={() => setPolicyOpen(true)}>View active policy<ArrowUpRight size={12} /></button></footer>
-      </div>
+      </div>}
     </main>
-    <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} />
+    <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} user={user} onSaved={(data) => { changeSource(data); setSelectedClaim(data.claims.find((item) => item.id === selectedClaim?.id) ?? null); }} />
     <PolicyDetails open={policyOpen} report={report} close={() => setPolicyOpen(false)} />
   </div>;
 }

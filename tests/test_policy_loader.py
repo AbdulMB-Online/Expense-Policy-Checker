@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from loader.policy_loader import load_policy
+from backend.loader.policy_loader import load_policy
 
 
 POLICY_PATH = Path(__file__).resolve().parents[1] / "data" / "policy" / "policy.json"

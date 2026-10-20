@@ -13,29 +13,42 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-web.txt
 npm --prefix frontend ci
 npm --prefix frontend run build
-.venv/bin/python -m uvicorn api.app:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000
 ```
 
 Open **http://127.0.0.1:8000**. The Python server serves the built React app and
 API together. Stop it with Ctrl+C. Build the frontend before starting this
 server; rebuild after frontend edits.
 
-The stored CSV and policy are loaded automatically. **Refresh report** reloads
-stored files, or reruns checks on the active uploaded files.
-The CLI remains available with `python3 -m scripts.check_expenses`.
+Choose a demo account when the app opens. **Refresh report** reloads the inputs
+and uses saved check results when the expense revisions, policy, and engine are unchanged.
+The CLI remains available with `python3 -m backend.scripts.check_expenses`.
 
 ## Use the dashboard
 
-- Open **User view** to enter an employee name, date, category, amount, and
+- Choose an employee demo account to submit your own expenses. Your employee
+  identity is fixed by the account. Enter a date, category, amount, and
   description. Hotel/per-night categories also require the number of nights.
   Attach a PDF, PNG, or JPEG receipt (up to 5 MiB), then click **Submit expense**.
 - The active policy checks run before saving. Valid claims with violations are
   saved with every reason; invalid fields or unsupported receipts show errors
   and retain the draft. Submissions without receipts are allowed and flagged
   when the policy requires one. **Unflagged** still requires finance review.
-- Open **Reviewer view** or **View reviewer report** after submission. Totals,
-  grouping, filters, and exports include submitted claims. **Submitted expenses**
-  in both views also shows clean claims; open a claim to download its receipt.
+- Choose Morgan Finance or Taylor Finance to open **Reviewer view**. Totals,
+  grouping, filters, and exports include submitted claims. **All expenses** also
+  includes unflagged imported claims. Open a claim to download its receipt and
+  approve it, reject it, or request changes. Rejections and change requests need
+  a comment. Reviewers cannot decide on their own expenses.
+- Imported names matching a seeded employee are mapped to that account. For an
+  unknown name, open the claim and choose **Employee account → Assign employee**
+  before reviewing it. Account IDs control ownership after this initial mapping.
+- Employees see only their own claims, totals, receipts, and review history.
+  A form expense with requested changes can be corrected and resubmitted from
+  its details. The previous revision, receipt, findings, and decision are retained.
+  Correct imported expenses through a new CSV upload.
+- Use **Saved datasets** to reopen uploaded inputs after a restart. The selected
+  dataset is remembered per demo account in the browser. Use **Switch account**
+  to move between employees and reviewers.
 - Under **Report files**, choose an **Expense CSV**, a **Policy JSON**, or both,
   then click **Check selected files**. Filenames can differ from the samples;
   contents must follow the [loader formats](../docs/loader.md). Replacing one
@@ -58,23 +71,30 @@ reflect filters. Monetary amounts and totals come from Python as decimal strings
 the browser does not calculate financial totals. Unflagged claims still require
 review for conditions outside the active checks.
 
-Uploads do not overwrite the repository's samples. Files are limited to 5 MiB
-each and parsed into temporary, separate review snapshots. The local API keeps
-the latest 20 snapshots in memory until it restarts. Refresh, filtering, and
-export use the active snapshot; reloading the browser starts with sample files.
-Upload again if a snapshot is no longer available. Use the documented single
-API process; snapshots are not shared between multiple server workers.
+Uploads do not overwrite repository samples. CSVs, policy JSON files, and
+receipts are limited to 5 MiB each. PDF, PNG, and JPEG receipts are checked by
+file signature and served as downloads; the app does not extract receipt text.
 
-Form submissions and their receipt bytes are stored together in
-`artifacts/submissions.sqlite3`, which is ignored by Git. They survive API
-restarts and do not modify the source CSV. Default CSV submissions belong to the
-stored workspace. Uploaded CSV workspaces are identified by file contents;
-upload the same CSV again after a restart to recover their submissions. Changing
-only policy limits rechecks those claims; changing currency keeps them separate
-to avoid relabeling amounts. Retrying a submission does not create a second
-claim. Receipt contents are checked by file signature and served as downloads;
-the app does not extract receipt text. User/reviewer views share this local
-workspace and do not implement accounts or access roles.
+All durable application data lives in `artifacts/submissions.sqlite3`, ignored
+by Git. This includes original file bytes as SQLite BLOBs, artifact metadata,
+parsed inputs and rejected-row reasons, policy versions, expense ownership and
+revisions, check runs, individual decisions, and exported text reports. Uploads
+survive API restarts and are no longer evicted after 20 datasets. The CLI export
+scripts still write their requested output files independently of the web database.
+
+Uploaded CSV workspaces are identified by file contents. Reusing the same CSV
+keeps submitted claims. Changing only policy limits produces another saved
+check run; changing currency keeps amounts in a separate workspace. Duplicate
+checks evaluate the full workspace before permissions and screen filters are
+applied. Employee duplicate explanations omit other employees' claim IDs.
+Automated flags and human review decisions are separate fields.
+
+Demo sign-in uses a one-day, HTTP-only, SameSite cookie backed by a hashed
+session token in SQLite. The local demo deliberately permits account selection
+without passwords; run it on `127.0.0.1` as shown above.
+
+See the [database documentation](../README.md#local-database-and-attachments)
+for schema, migration, attachment APIs, and backup details.
 
 ## Frontend development
 
@@ -108,7 +128,8 @@ future CLI additions resolve consistently.
 
 React hooks manage the employee, search, grouping, dialog, refresh, and loading
 state. There is no required global state/context provider. The top-level
-component takes no props; internal components receive typed API data. Radix
+dashboard component receives the signed-in demo user and account-switch callback;
+internal components receive typed API data. Radix
 primitives manage accessible tabs/dialog focus and keyboard interactions.
 
 ## Recreating the frontend setup

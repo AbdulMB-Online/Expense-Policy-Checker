@@ -1,31 +1,33 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, CircleCheck, FileText, Loader2, ShieldCheck, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { categoryLabel, dateLabel, ExpenseSubmissionError, money, submitExpense, type Claim, type Report } from "@/lib/report";
+import { categoryLabel, dateLabel, ExpenseSubmissionError, money, submitExpense, type Claim, type Report, type DemoUser } from "@/lib/report";
+import { statusLabel } from "@/components/expense-review";
 
 function today() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-export function SubmittedExpenses({ report, onClaim }: { report: Report; onClaim: (claim: Claim) => void }) {
+export function SubmittedExpenses({ report, onClaim, all = false }: { report: Report; onClaim: (claim: Claim) => void; all?: boolean }) {
   const [showAll, setShowAll] = useState(false);
-  const claims = [...report.submissions].reverse();
+  const claims = [...(all || report.current_user?.role === "employee" ? report.claims : report.submissions)].reverse();
   return <section className="submitted-expenses" aria-label="Submitted expenses">
-    <div className="section-heading"><div><h2>Submitted expenses <span className="heading-count">{claims.length}</span></h2><p>Every submitted claim, including those with no active policy flags.</p></div></div>
-    {claims.length ? <div className="submitted-list">{(showAll ? claims : claims.slice(0, 5)).map((claim) => <button className="submitted-row" key={claim.id} onClick={() => onClaim(claim)} aria-label={`View submitted expense ${claim.id}`}>
+    <div className="section-heading"><div><h2>{all ? "All expenses" : "Submitted expenses"} <span className="heading-count">{claims.length}</span></h2><p>Every claim, including those with no active policy flags.</p></div></div>
+    {claims.length ? <div className="submitted-list">{(showAll ? claims : claims.slice(0, 5)).map((claim) => <button className="submitted-row" key={claim.id} onClick={() => onClaim(claim)} aria-label={`View ${all ? "review" : "submitted"} expense ${claim.id}`}>
       <span className="claim-category-icon"><FileText size={17} /></span><span className="submitted-identity"><strong>{claim.employee} · {categoryLabel(claim.category)}</strong><small>{dateLabel(claim.date)} · {claim.description}</small><small>{claim.id}{claim.receipt ? ` · Receipt: ${claim.receipt.name}` : " · No receipt"}</small></span>
-      <span className={`submission-status ${claim.status}`}>{claim.status === "flagged" ? `${claim.violations.length} policy ${claim.violations.length === 1 ? "flag" : "flags"}` : "Unflagged by active checks"}</span><strong>{money(claim.amount, report.currency)}</strong><ArrowRight size={15} />
+      <span className={`submission-status ${claim.status}`}>{claim.review_status && <span>{statusLabel(claim.review_status)} · </span>}{claim.status === "flagged" ? `${claim.violations.length} policy ${claim.violations.length === 1 ? "flag" : "flags"}` : "Unflagged by active checks"}</span><strong>{money(claim.amount, report.currency)}</strong><ArrowRight size={15} />
     </button>)}{claims.length > 5 && <Button variant="ghost" onClick={() => setShowAll(!showAll)}>{showAll ? "Show recent submissions" : "Show all submissions"}</Button>}</div> : <p className="submission-empty"><FileText size={18} />Your submitted expenses will appear here.</p>}
   </section>;
 }
 
-export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onClaim }: {
+export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onClaim, user }: {
   report: Report | null; busy: boolean; onBusy: (busy: boolean) => void;
   onSaved: (report: Report) => void; onReview: () => void; onClaim: (claim: Claim) => void;
+  user: DemoUser;
 }) {
   const prefix = useId();
-  const [draft, setDraft] = useState({ employee: "", date: today(), category: "", amount: "", description: "", nights: "" });
+  const [draft, setDraft] = useState({ employee: user.role === "employee" ? user.name : "", date: today(), category: "", amount: "", description: "", nights: "" });
   const [receipt, setReceipt] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -118,13 +120,13 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onCla
   return <section className="user-expense-view" id="submit-expense" aria-label="User expense submission">
     <header className="submission-heading"><div className="eyebrow"><span className="eyebrow-dot" />YOUR EXPENSES, READY FOR REVIEW</div><h1>Submit an expense<span>.</span></h1><p>Add the details and a receipt. We’ll check the active policy and add your claim to the report.</p></header>
     {!report ? <div className="submission-empty" role="status">Loading the active expense policy…</div> : <>
-      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}<Button variant="ghost" onClick={onReview}>View reviewer report <ArrowRight size={14} /></Button></div></div>}
+      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}{user.role === "reviewer" && <Button variant="ghost" onClick={onReview}>View reviewer report <ArrowRight size={14} /></Button>}</div></div>}
       <div className="submission-layout">
         <form ref={form} className="expense-form" aria-label="Submit an expense" onSubmit={submit}>
           <div className="expense-form-heading"><FileText size={20} /><div><h2>Expense details</h2><p>All fields are required unless marked optional.</p></div></div>
           <fieldset disabled={sending || busy}>
             <div className="expense-fields">
-              <div className="expense-field"><label htmlFor={`${prefix}-employee`}>Employee name</label><input {...fieldProps("employee")} list={`${prefix}-employees`} autoComplete="name" required maxLength={200} placeholder="Enter your full name" />{fieldError("employee")}</div>
+              <div className="expense-field"><label htmlFor={`${prefix}-employee`}>Employee name</label><input {...fieldProps("employee")} readOnly={user.role === "employee"} list={`${prefix}-employees`} autoComplete="name" required maxLength={200} placeholder="Enter your full name" />{fieldError("employee")}</div>
               <datalist id={`${prefix}-employees`}>{report.employees.map((name) => <option value={name} key={name} />)}</datalist>
               <div className="expense-field"><label htmlFor={`${prefix}-date`}>Expense date</label><input {...fieldProps("date")} type="date" required />{fieldError("date")}</div>
               <div className="expense-field"><label htmlFor={`${prefix}-category`}>Category</label><select {...fieldProps("category")} required>{Object.keys(report.policy.categories).map((category) => <option value={category} key={category}>{categoryLabel(category)}</option>)}</select>{fieldError("category")}</div>
