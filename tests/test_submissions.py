@@ -12,7 +12,8 @@ import httpx
 import pytest
 
 from api.app import create_app
-from api.submissions import MAX_RECEIPT_BYTES, SubmissionStore
+from api.submissions import MAX_RECEIPT_BYTES
+from database.submissions import SubmissionStore
 from scripts.sample_data import generate_sample
 
 
@@ -259,7 +260,7 @@ def test_storage_failure_has_retry_message_without_claim(project, monkeypatch):
     app = create_app(project)
     def fail(*_args):
         raise sqlite3.OperationalError("disk full")
-    monkeypatch.setattr(SubmissionStore, "save", fail)
+    monkeypatch.setattr(SubmissionStore, "_connect", fail)
     result = submit(app)
     assert result.status_code == 503
     assert "retry" in result.json()["detail"]

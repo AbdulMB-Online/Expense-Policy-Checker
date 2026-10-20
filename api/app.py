@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from decimal import DecimalException
 from pathlib import Path
 from secrets import token_urlsafe
-import sqlite3
 from typing import Literal
 from urllib.parse import quote, urlencode
 
@@ -15,7 +14,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from api.sources import ReportSource, SourceStore
-from api.submissions import SubmissionStore, parse_expense, read_receipt, validate_request_id
+from api.submissions import parse_expense, read_receipt, validate_request_id
+from database.submissions import ReceiptNotFoundError, StorageError, SubmissionConflictError, SubmissionStore
 from loader.expense_loader import Expense, LoadResult
 from reporting.violation_report import ViolationReport, build_report, group_report, render_report
 from rules.engine import RulesEngine
@@ -101,10 +101,18 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     sources = SourceStore(root)
     submissions = SubmissionStore(root)
 
-    @application.exception_handler(sqlite3.Error)
+    @application.exception_handler(StorageError)
     @application.exception_handler(OSError)
     async def storage_error(_request, _error):
         return JSONResponse(status_code=503, content={"detail": "Submitted expenses could not be saved or loaded. Check local storage and retry."})
+
+    @application.exception_handler(SubmissionConflictError)
+    async def submission_conflict(_request, error):
+        return JSONResponse(status_code=409, content={"detail": str(error)})
+
+    @application.exception_handler(ReceiptNotFoundError)
+    async def receipt_not_found(_request, error):
+        return JSONResponse(status_code=404, content={"detail": str(error)})
 
     @application.get("/api/health")
     def health():

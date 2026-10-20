@@ -1,1 +1,1 @@
-"""Read-only web API for the expense review dashboard."""
+"""Web API for expense review and submission."""
