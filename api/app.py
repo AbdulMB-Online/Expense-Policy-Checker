@@ -1,18 +1,22 @@
 """Expose the existing expense pipeline to React without duplicating rules."""
 
 import csv
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from decimal import DecimalException
 from pathlib import Path
+from secrets import token_urlsafe
 from typing import Literal
+from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Query, UploadFile
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from api.sources import ReportSource, SourceStore
-from loader.expense_loader import Expense
+from api.submissions import parse_expense, read_receipt, validate_request_id
+from database.submissions import ReceiptNotFoundError, StorageError, SubmissionConflictError, SubmissionStore
+from loader.expense_loader import Expense, LoadResult
 from reporting.violation_report import ViolationReport, build_report, group_report, render_report
 from rules.engine import RulesEngine
 
@@ -31,7 +35,9 @@ def _summary(report: ViolationReport) -> dict:
     }
 
 
-def _claim(expense: Expense, violations: list | tuple) -> dict:
+def _claim(expense: Expense, violations: list | tuple, saved: dict, dataset: str | None) -> dict:
+    submission = saved.get(expense.id)
+    receipt_url = f"/api/receipts/{expense.id}" + ("?" + urlencode({"dataset": dataset}) if dataset else "")
     return {
         "id": expense.id,
         "employee": expense.employee,
@@ -40,9 +46,19 @@ def _claim(expense: Expense, violations: list | tuple) -> dict:
         "amount": f"{expense.amount:.2f}",
         "description": expense.description,
         "receipt_attached": expense.receipt_attached,
+        "submission_date": expense.submission_date.isoformat(),
+        "nights": expense.nights,
+        "origin": "submission" if submission else "file",
+        "receipt": {"name": submission.receipt_name, "download_url": receipt_url} if submission and submission.receipt_name else None,
         "status": "flagged" if violations else "unflagged",
         "violations": [asdict(violation) for violation in violations],
     }
+
+
+def _with_submissions(source: ReportSource, expenses: tuple[Expense, ...]) -> ReportSource:
+    if {expense.id for expense in source.loaded.expenses} & {expense.id for expense in expenses}:
+        raise HTTPException(409, "Expense IDs in this CSV conflict with submitted claims. Use unique expense IDs.")
+    return replace(source, loaded=LoadResult(source.loaded.expenses + expenses, source.loaded.errors))
 
 
 def _load(source: ReportSource, employee: str | None, search: str):
@@ -83,13 +99,31 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     root = Path(project_root) if project_root is not None else PROJECT_ROOT
     application = FastAPI(title="Expense Policy Checker", version="1.0.0")
     sources = SourceStore(root)
+    submissions = SubmissionStore(root)
+
+    @application.exception_handler(StorageError)
+    @application.exception_handler(OSError)
+    async def storage_error(_request, _error):
+        return JSONResponse(status_code=503, content={"detail": "Submitted expenses could not be saved or loaded. Check local storage and retry."})
+
+    @application.exception_handler(SubmissionConflictError)
+    async def submission_conflict(_request, error):
+        return JSONResponse(status_code=409, content={"detail": str(error)})
+
+    @application.exception_handler(ReceiptNotFoundError)
+    async def receipt_not_found(_request, error):
+        return JSONResponse(status_code=404, content={"detail": str(error)})
 
     @application.get("/api/health")
     def health():
         return {"status": "ok"}
 
     def serialize(source: ReportSource, employee: str | None, search: str, dataset: str | None):
+        saved = {item.expense.id: item for item in submissions.list(source.submission_scope)}
+        source = _with_submissions(source, tuple(item.expense for item in saved.values()))
         loaded, policy, employees, violations, selected, engine, all_report, report = _load(source, employee, search)
+        def claim(expense, reasons):
+            return _claim(expense, reasons, saved, dataset)
         groups = {}
         for grouping in ("employee", "rule"):
             groups[grouping] = [
@@ -97,7 +131,7 @@ def create_app(project_root: Path | None = None) -> FastAPI:
                     "id": group.key,
                     "name": group.name,
                     "total_amount": f"{group.total_flagged_amount:.2f}",
-                    "claims": [_claim(item.expense, item.violations) for item in group.expenses],
+                    "claims": [claim(item.expense, item.violations) for item in group.expenses],
                 }
                 for group in group_report(report, group_by=grouping)
             ]
@@ -111,7 +145,8 @@ def create_app(project_root: Path | None = None) -> FastAPI:
             "overview": _summary(all_report),
             "summary": _summary(report),
             "employees": employees,
-            "claims": [_claim(expense, violations.get(expense.id, [])) for expense in selected],
+            "claims": [claim(expense, violations.get(expense.id, [])) for expense in selected],
+            "submissions": [claim(item.expense, violations.get(item.expense.id, [])) for item in saved.values()],
             "groups": groups,
             "errors": [asdict(error) for error in loaded.errors],
             "policy": {
@@ -137,9 +172,43 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     ):
         source = sources.prepare(expenses, policy, dataset)
         # Validate and run the complete pipeline before publishing a snapshot.
-        data = serialize(source, None, "", None)
-        data["dataset_id"] = sources.save(source)
+        token = token_urlsafe(24)
+        data = serialize(source, None, "", token)
+        sources.save(source, token)
         return data
+
+    @application.post("/api/expenses", status_code=201)
+    def submit_expense(
+        employee: str = Form(max_length=200),
+        expense_date: str = Form(alias="date", max_length=10),
+        category: str = Form(max_length=100),
+        amount: str = Form(max_length=64),
+        description: str = Form(max_length=2000),
+        request_id: str = Form(max_length=100),
+        nights: str = Form(default="", max_length=20),
+        dataset: str | None = Form(default=None, max_length=100),
+        receipt: UploadFile | None = None,
+    ):
+        source = sources.resolve(dataset)
+        key = validate_request_id(request_id)
+        attachment = read_receipt(receipt)
+        expense = parse_expense({
+            "employee": employee, "date": expense_date, "category": category,
+            "amount": amount, "description": description, "nights": nights,
+        }, source.policy, attachment is not None)
+        claim_id = submissions.save(source.submission_scope, key, expense, attachment,
+            lambda records: _load(_with_submissions(source, records), None, ""))
+        data = serialize(source, None, "", dataset)
+        return {"claim": next(claim for claim in data["submissions"] if claim["id"] == claim_id), "report": data}
+
+    @application.get("/api/receipts/{expense_id}")
+    def download_receipt(expense_id: str, dataset: str | None = Query(default=None, max_length=100)):
+        source = sources.resolve(dataset)
+        receipt = submissions.receipt(source.submission_scope, expense_id)
+        return Response(receipt.contents, media_type=receipt.media_type, headers={
+            "Content-Disposition": "attachment; filename*=UTF-8''" + quote(receipt.name, safe=""),
+            "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store",
+        })
 
     @application.get("/api/report/download", response_class=PlainTextResponse)
     def download_report(
@@ -148,7 +217,9 @@ def create_app(project_root: Path | None = None) -> FastAPI:
         search: str = Query(default="", max_length=200),
         dataset: str | None = Query(default=None, max_length=100),
     ):
-        *_, report = _load(sources.resolve(dataset), employee, search)
+        source = sources.resolve(dataset)
+        saved = submissions.list(source.submission_scope)
+        *_, report = _load(_with_submissions(source, tuple(item.expense for item in saved)), employee, search)
         return PlainTextResponse(
             render_report(report, group_by=group_by),
             headers={"Content-Disposition": f'attachment; filename="expense-report-{group_by}.txt"'},

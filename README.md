@@ -7,7 +7,9 @@ reports grouped by employee or policy rule for finance review.
 ## Browser dashboard
 
 A React dashboard supports custom CSV/policy JSON uploads, employee/rule views,
-filters, claim details, rejected records, and report downloads. See the
+filters, claim details, rejected records, and report downloads. Its **User view**
+accepts expense submissions and receipt attachments, checks the policy, and adds
+saved claims to the dashboard report. See the
 [dashboard setup guide](frontend/README.md) to install and run it locally.
 
 ## Quick start
@@ -86,9 +88,9 @@ exceeds it. The standard policy leaves stay length uncapped. See the
 
 
 Results include every detected violation and a `PASS` or `FLAGGED` status.
-Checks cover amounts, receipts, and suspected duplicates. Submission deadlines,
-restricted and unknown categories, future dates, missing hotel nights, stay lengths,
-and review-required classifications still require manual review. Invalid supplied
+Checks cover amounts, receipts, duplicates, submission deadlines, future dates,
+category restrictions and review requirements, hotel nights, and stay lengths.
+Flags still require finance review. Invalid supplied
 night counts are rejected by the loader before policy evaluation.
 
 - `build_report(...)` creates an immutable report with summary counts and the

@@ -4,6 +4,8 @@ export interface Claim {
   id: string; employee: string; date: string; category: string; amount: string;
   description: string; receipt_attached: boolean; status: "flagged" | "unflagged";
   violations: Violation[];
+  submission_date: string; nights: number | null; origin: "file" | "submission";
+  receipt: { name: string; download_url: string } | null;
 }
 export interface ReportGroup { id: string; name: string; total_amount: string; claims: Claim[] }
 export interface Summary {
@@ -13,6 +15,7 @@ export interface Summary {
 export interface CategoryPolicy {
   max_amount: string | null; limit_basis: string;
   receipt: { mode: string; threshold?: string };
+  nights_required?: boolean;
 }
 export interface Report {
   generated_at: string; currency: string;
@@ -20,6 +23,7 @@ export interface Report {
   sources: { expenses: string; policy: string };
   period: { start: string; end: string } | null;
   overview: Summary; summary: Summary; employees: string[]; claims: Claim[];
+  submissions: Claim[];
   groups: Record<Grouping, ReportGroup[]>;
   errors: { line_number: number; expense_id: string | null; reasons: string[] }[];
   policy: { name: string; version: string; categories: Record<string, CategoryPolicy>; active_rules: string[] };
@@ -69,4 +73,22 @@ export async function uploadReport(expenses: File | null, policy: File | null, d
   if (policy) files.append("policy", policy);
   if (dataset) files.append("dataset", dataset);
   return parseReport(await fetch("/api/report/upload", { method: "POST", body: files }));
+}
+
+export class ExpenseSubmissionError extends Error {
+  constructor(message: string, public fields: Record<string, string> = {}, public status?: number) { super(message); }
+}
+
+export async function submitExpense(files: FormData): Promise<{ claim: Claim; report: Report }> {
+  const response = await fetch("/api/expenses", { method: "POST", body: files });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    if (typeof problem.detail === "string") throw new ExpenseSubmissionError(problem.detail, {}, response.status);
+    if (Array.isArray(problem.detail)) {
+      const fields = Object.fromEntries(problem.detail.map((issue: { loc: string[]; msg: string }) => [issue.loc.at(-1), issue.msg]));
+      throw new ExpenseSubmissionError("Please correct the highlighted expense details.", fields, response.status);
+    }
+    throw new ExpenseSubmissionError(problem.detail?.message ?? "The expense could not be submitted. Please retry.", problem.detail?.fields, response.status);
+  }
+  return response.json();
 }

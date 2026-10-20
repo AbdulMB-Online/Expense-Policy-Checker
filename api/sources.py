@@ -4,6 +4,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 import csv
 from decimal import DecimalException
+from hashlib import sha256
 from pathlib import Path
 from secrets import token_urlsafe
 from tempfile import TemporaryDirectory
@@ -27,6 +28,11 @@ class ReportSource:
     policy: dict
     expense_name: str
     policy_name: str
+    expense_key: str = "stored"
+
+    @property
+    def submission_scope(self) -> str:
+        return f"{self.expense_key}:{self.policy['currency']}"
 
 
 def _stored(path: Path, loader):
@@ -50,7 +56,7 @@ def _uploaded(file: UploadFile, loader, internal_name: str):
             parsed = loader(path)
     except (ValueError, csv.Error, DecimalException) as error:
         raise HTTPException(422, f"{name}: {error}") from error
-    return parsed, name
+    return parsed, name, sha256(contents).hexdigest()
 
 
 class SourceStore:
@@ -81,23 +87,25 @@ class SourceStore:
         # uploaded files also work when the stored samples are unavailable.
         previous = self.resolve(dataset) if dataset and (expenses is None or policy is None) else None
         if expenses is not None:
-            loaded, expense_name = _uploaded(expenses, load_expenses, "expenses.csv")
+            loaded, expense_name, expense_key = _uploaded(expenses, load_expenses, "expenses.csv")
         elif previous is not None:
             loaded, expense_name = previous.loaded, previous.expense_name
+            expense_key = previous.expense_key
         else:
             loaded = _stored(self.root / DEFAULT_EXPENSES, load_expenses)
             expense_name = DEFAULT_EXPENSES.name
+            expense_key = "stored"
         if policy is not None:
-            settings, policy_name = _uploaded(policy, load_policy, "policy.json")
+            settings, policy_name, _ = _uploaded(policy, load_policy, "policy.json")
         elif previous is not None:
             settings, policy_name = previous.policy, previous.policy_name
         else:
             settings = _stored(self.root / DEFAULT_POLICY, load_policy)
             policy_name = DEFAULT_POLICY.name
-        return ReportSource(loaded, settings, expense_name, policy_name)
+        return ReportSource(loaded, settings, expense_name, policy_name, expense_key)
 
-    def save(self, source: ReportSource) -> str:
-        token = token_urlsafe(24)
+    def save(self, source: ReportSource, token: str | None = None) -> str:
+        token = token or token_urlsafe(24)
         with self._lock:
             self._datasets[token] = source
             while len(self._datasets) > MAX_DATASETS:
