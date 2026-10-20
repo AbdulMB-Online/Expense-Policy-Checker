@@ -171,3 +171,46 @@ def test_committed_sample_matches_generator(tmp_path):
     generated = generate_sample(tmp_path / "sample.csv")
     committed = Path(__file__).resolve().parents[1] / "data" / "expenses" / "sample_expenses.csv"
     assert generated.read_bytes() == committed.read_bytes()
+
+
+def test_committed_sample_rejects_exact_rows_with_all_validation_reasons():
+    source = Path(__file__).resolve().parents[1] / "data/expenses/sample_expenses.csv"
+    loaded = load_expenses(source)
+    amount = "amount: expected a nonnegative decimal with at most two decimal places"
+    expense_date = "date: expected a real date in YYYY-MM-DD format"
+    submission_date = "submission_date: expected a real date in YYYY-MM-DD format"
+    receipt = "receipt_attached: expected true or false"
+    nights = "nights: expected a positive integer"
+    assert [(error.line_number, error.expense_id, error.reasons) for error in loaded.errors] == [
+        (12, "BAD-001", ("employee: required field is empty",)),
+        (13, "BAD-002", (amount,)),
+        (14, "BAD-003", (expense_date,)),
+        (15, "BAD-004", (amount,)),
+        (16, "BAD-005", ("description: required field is empty",)),
+        (17, "BAD-006", (receipt,)),
+        (18, None, ("id: required field is empty",)),
+        (19, "EXP-001", ("id: duplicates a previously accepted record",)),
+        (83, "BAD-007", ("category: required field is empty",)),
+        (84, "BAD-008", ("amount: required field is empty",)),
+        (85, "BAD-009", ("receipt_attached: required field is empty",)),
+        (86, "BAD-010", ("date: required field is empty",)),
+        (87, "BAD-011", ("submission_date: required field is empty",)),
+        (88, "BAD-012", (amount,)),
+        (89, "BAD-013", (amount,)),
+        (90, "BAD-014", (amount,)),
+        (91, "BAD-015", (amount,)),
+        (92, "BAD-016", (amount,)),
+        (93, "BAD-017", (amount,)),
+        (94, "BAD-018", (expense_date,)),
+        (95, "BAD-019", (expense_date,)),
+        (96, "BAD-020", (submission_date,)),
+        (97, "BAD-021", (nights,)),
+        (98, "BAD-022", (nights,)),
+        (99, "BAD-023", (nights,)),
+        (100, "BAD-024", (nights,)),
+        (101, "BAD-025", ("employee: required field is empty", amount, receipt)),
+        (102, "BAD-026", ("description: required field is empty", expense_date, submission_date)),
+    ]
+    assert [expense.id for expense in loaded.expenses] == [
+        f"EXP-{number:03d}" for number in range(1, 73)
+    ]
