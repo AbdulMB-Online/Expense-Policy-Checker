@@ -3,6 +3,7 @@ import type { Claim, Report } from "@/lib/report";
 export const alice: Claim = {
   id: "EXP-005", employee: "Alice Morgan", date: "2026-10-05", category: "meals",
   amount: "75.00", description: "Client lunch", receipt_attached: false, status: "flagged",
+  submission_date: "2026-10-05", nights: null, origin: "file", receipt: null,
   violations: [
     { rule_id: "amount_limit", rule_name: "Amount limit", reason: "Amount 75.00 exceeds the meal limit of 50.00." },
     { rule_id: "missing_receipt", rule_name: "Missing receipt", reason: "A receipt is required for this 75.00 meal." },
@@ -11,6 +12,7 @@ export const alice: Claim = {
 const jordan: Claim = {
   id: "EXP-004", employee: "Jordan Lee", date: "2026-10-05", category: "transport",
   amount: "40.00", description: "Taxi to client", receipt_attached: false, status: "flagged",
+  submission_date: "2026-10-05", nights: null, origin: "file", receipt: null,
   violations: [{ rule_id: "missing_receipt", rule_name: "Missing receipt", reason: "A receipt is required for this taxi." }],
 };
 
@@ -22,6 +24,7 @@ export const fixture: Report = {
   overview: { accepted_count: 2, unflagged_count: 0, flagged_count: 2, violation_count: 3, rejected_count: 1, total_flagged_amount: "115.00" },
   summary: { accepted_count: 2, unflagged_count: 0, flagged_count: 2, violation_count: 3, rejected_count: 1, total_flagged_amount: "115.00" },
   employees: ["Alice Morgan", "Jordan Lee"], claims: [alice, jordan],
+  submissions: [],
   groups: {
     employee: [
       { id: "Alice Morgan", name: "Alice Morgan", total_amount: "75.00", claims: [alice] },

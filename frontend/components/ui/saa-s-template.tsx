@@ -9,31 +9,34 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SourceFiles } from "@/components/source-files";
+import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-view";
 import { categoryLabel, dateLabel, money, readReport, reportQuery, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
 
 // Adapted from the supplied SaaS template: fixed dark navigation, gradient hero,
 // soft light effects, responsive menu, and a white gradient primary action.
-function Brand() {
-  return <a href="#overview" className="brand" aria-label="ExpenseCheck overview">
+function Brand({ onHome }: { onHome: () => void }) {
+  return <a href="#overview" className="brand" aria-label="ExpenseCheck overview" onClick={onHome}>
     <span className="brand-mark"><CheckCheck size={21} strokeWidth={2.2} /></span>
     <span>Expense<span className="brand-light">Check</span><span className="brand-dot">.</span></span>
   </a>;
 }
 
-const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues }: {
+const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, view, onView }: {
   issueCount: number; openPolicy: () => void; openIssues: () => void;
+  view: "review" | "submit"; onView: (view: "review" | "submit") => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   return <header className="site-header">
     <nav className="header-inner" aria-label="Main navigation">
-      <Brand />
+      <Brand onHome={() => onView("review")} />
       <div className={`navigation-links ${mobileOpen ? "is-open" : ""}`}>
-        <a href="#overview" className="nav-active" onClick={() => setMobileOpen(false)}>Overview</a>
-        <a href="#reports" onClick={() => setMobileOpen(false)}>Reports</a>
+        <a href="#overview" className={view === "review" ? "nav-active" : ""} onClick={() => { onView("review"); setMobileOpen(false); }}>Reviewer view</a>
+        <button className={view === "submit" ? "nav-active" : ""} aria-pressed={view === "submit"} onClick={() => { onView("submit"); setMobileOpen(false); }}>User view</button>
+        <a href="#reports" onClick={() => { onView("review"); setMobileOpen(false); }}>Reports</a>
         <button onClick={() => { openPolicy(); setMobileOpen(false); }}>Policy <ArrowUpRight size={12} /></button>
         <button onClick={() => { openIssues(); setMobileOpen(false); }}>Input issues <span className="nav-count">{issueCount}</span></button>
       </div>
-      <div className="workspace-label"><span className="status-dot" />Finance workspace<span className="workspace-avatar">T4</span></div>
+      <div className="workspace-label"><span className="status-dot" />{view === "review" ? "Finance workspace" : "Employee workspace"}<span className="workspace-avatar">T4</span></div>
       <button className="mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen}>
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
@@ -116,12 +119,14 @@ function ClaimDetails({ claim, report, close }: { claim: Claim | null; report: R
   // retrieves the full claim so reviewers can inspect every reason together.
   const fullClaim = report?.claims.find((item) => item.id === claim?.id) ?? claim;
   return <Dialog open={!!claim} onOpenChange={(open) => { if (!open) close(); }}><DialogContent className="detail-dialog">
-    <DialogHeader><div className="dialog-eyebrow"><FileText size={15} /> CLAIM DETAILS</div><DialogTitle>{fullClaim?.id}</DialogTitle><DialogDescription>Review the claim and every reason it was flagged.</DialogDescription></DialogHeader>
+    <DialogHeader><div className="dialog-eyebrow"><FileText size={15} /> CLAIM DETAILS</div><DialogTitle>{fullClaim?.id}</DialogTitle><DialogDescription>Review the claim, supporting receipt, and policy check results.</DialogDescription></DialogHeader>
     {fullClaim && report && <>
-      <div className="detail-amount">{money(fullClaim.amount, report.currency)}<Badge className="detail-status" variant="outline">Needs review</Badge></div>
+      <div className="detail-amount">{money(fullClaim.amount, report.currency)}<Badge className="detail-status" variant="outline">{fullClaim.status === "flagged" ? "Needs review" : "Unflagged by active checks"}</Badge></div>
       <dl className="detail-grid"><div><dt>Employee</dt><dd>{fullClaim.employee}</dd></div><div><dt>Expense date</dt><dd>{fullClaim.date}</dd></div><div><dt>Category</dt><dd>{categoryLabel(fullClaim.category)}</dd></div><div><dt>Receipt attached</dt><dd>{fullClaim.receipt_attached ? "Yes" : "No"}</dd></div></dl>
       <div className="detail-description"><span>Description</span><p>{fullClaim.description}</p></div>
-      <div className="detail-reasons"><h3>Why this claim needs attention</h3>{fullClaim.violations.map((violation, index) => <div className="detail-reason" key={`${violation.rule_id}-${index}`}><CircleAlert size={16} /><div><strong>{violation.rule_name}</strong><p>{violation.reason}</p></div></div>)}</div>
+      {fullClaim.nights !== null && <p className="detail-description">Number of nights: {fullClaim.nights}</p>}
+      {fullClaim.receipt && <a className="receipt-download" href={fullClaim.receipt.download_url} download><ArrowDownToLine size={16} /><span>Download receipt: {fullClaim.receipt.name}</span></a>}
+      <div className="detail-reasons"><h3>{fullClaim.violations.length ? "Why this claim needs attention" : "No violations detected by active checks"}</h3>{fullClaim.violations.map((violation, index) => <div className="detail-reason" key={`${violation.rule_id}-${index}`}><CircleAlert size={16} /><div><strong>{violation.rule_name}</strong><p>{violation.reason}</p></div></div>)}</div>
       <p className="review-guidance"><Info size={14} />Verify the supporting information before deciding how to handle this claim.</p>
     </>}
   </DialogContent></Dialog>;
@@ -129,7 +134,7 @@ function ClaimDetails({ claim, report, close }: { claim: Claim | null; report: R
 
 function PolicyDetails({ open, close, report }: { open: boolean; close: () => void; report: Report | null }) {
   return <Dialog open={open} onOpenChange={(value) => { if (!value) close(); }}><DialogContent className="detail-dialog policy-dialog">
-    <DialogHeader><div className="dialog-eyebrow"><ShieldCheck size={15} /> YOUR ACTIVE POLICY</div><DialogTitle>{report?.policy.name ?? "Expense policy"}</DialogTitle><DialogDescription>Current limits are read from your stored policy file.</DialogDescription></DialogHeader>
+    <DialogHeader><div className="dialog-eyebrow"><ShieldCheck size={15} /> YOUR ACTIVE POLICY</div><DialogTitle>{report?.policy.name ?? "Expense policy"}</DialogTitle><DialogDescription>Current limits are read from the active policy file.</DialogDescription></DialogHeader>
     {report ? <><div className="policy-version"><span>Version {report.policy.version}</span><span>{report.currency}</span></div>
       <div className="policy-categories">{Object.entries(report.policy.categories).map(([name, settings]) => <div key={name}><strong>{categoryLabel(name)}</strong><span>{settings.max_amount === null ? "No configured limit" : `${money(settings.max_amount, report.currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt always required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</small></span></div>)}</div>
       <div className="active-checks"><span>Active checks</span>{report.policy.active_rules.map((rule) => <Badge key={rule} variant="outline"><Check size={11} />{rule}</Badge>)}</div>
@@ -138,6 +143,7 @@ function PolicyDetails({ open, close, report }: { open: boolean; close: () => vo
 }
 
 export default function Component() {
+  const [view, setView] = useState<"review" | "submit">("review");
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -148,6 +154,7 @@ export default function Component() {
   const [refreshCount, setRefreshCount] = useState(0);
   const [dataset, setDataset] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
@@ -190,8 +197,9 @@ export default function Component() {
 
   const refresh = () => setRefreshCount((value) => value + 1);
   const openIssues = () => {
+    setView("review");
     setIssuesOpen(true);
-    issuesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => issuesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
   async function download() {
     setExporting(true);
@@ -213,13 +221,15 @@ export default function Component() {
   }
 
   const groups = report?.groups[grouping] ?? [];
-  const pending = loading || uploading || search !== debouncedSearch;
+  const pending = loading || uploading || submitting || search !== debouncedSearch;
   return <div className="app-shell">
-    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => setPolicyOpen(true)} openIssues={openIssues} />
+    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => setPolicyOpen(true)} openIssues={openIssues} view={view} onView={setView} />
     <main className="dashboard-container">
-      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })} />
       {error && <div className="error-banner" role="alert"><CircleAlert size={18} /><div><strong>We couldn't load your report.</strong><p>{error}</p></div><Button variant="outline" onClick={refresh}>Try again</Button></div>}
-      <SourceFiles report={report} busy={loading || exporting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading} />
+      <div hidden={view !== "submit"}><UserExpenseView key={dataset ?? "stored"} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} onReview={() => { setView("review"); setTimeout(() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" }), 0); }} /></div>
+      <div hidden={view !== "review"}>
+      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })} />
+      <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading} />
       <Metrics report={error ? null : report} />
       <section className="reports-section" id="reports" aria-busy={pending}>
         <div className="section-heading"><div><div className="section-eyebrow">THE EXCEPTIONS, IN FOCUS</div><h2>Claims to review <span className="heading-count">{report?.overview.flagged_count ?? "—"}</span></h2><p>A little context makes the next decision clearer.</p></div>
@@ -236,11 +246,13 @@ export default function Component() {
           <div className="workspace-footer"><ShieldCheck size={13} /><span>Automated checks are a first pass. Final decisions stay with your finance team.</span><span className="footer-reasons">{report?.overview.violation_count ?? "—"} total reasons</span></div>
         </Tabs>
       </section>
+      {!!report?.submissions.length && <SubmittedExpenses report={report} onClaim={setSelectedClaim} />}
       <section ref={issuesRef} id="input-issues" className="input-issues">
         <button className="issues-heading" onClick={() => setIssuesOpen(!issuesOpen)} aria-expanded={issuesOpen}><span className="issues-icon"><CircleAlert size={19} /></span><span><strong>{report?.errors.length ? "A few records need fixing" : "Input records"} <Badge variant="outline">{report?.errors.length ?? 0}</Badge></strong><small>Rejected rows across the source file. Correct these before policy review.</small></span><span className="issues-toggle">{issuesOpen ? "Hide details" : "View details"}<ChevronDown size={15} className={issuesOpen ? "rotate-180" : ""} /></span></button>
         {issuesOpen && <div className="issues-list">{report?.errors.length ? report.errors.map((issue) => <div className="issue-row" key={issue.line_number}><span className="issue-line">Line {issue.line_number}</span><strong>{issue.expense_id ?? "ID unavailable"}</strong><span>{issue.reasons.join(" · ")}</span></div>) : <div className="no-issues"><Check size={15} />No rejected records in the source file.</div>}</div>}
       </section>
       <footer className="page-footer"><span><ShieldCheck size={13} />Expense Policy Checker</span><span>{report ? <>{report.sources.expenses}<span className="footer-dot">·</span>Updated {new Date(report.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</> : "Connecting to your expense records"}</span><button onClick={() => setPolicyOpen(true)}>View active policy<ArrowUpRight size={12} /></button></footer>
+      </div>
     </main>
     <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} />
     <PolicyDetails open={policyOpen} report={report} close={() => setPolicyOpen(false)} />

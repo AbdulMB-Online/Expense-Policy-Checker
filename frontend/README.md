@@ -26,6 +26,16 @@ The CLI remains available with `python3 -m scripts.check_expenses`.
 
 ## Use the dashboard
 
+- Open **User view** to enter an employee name, date, category, amount, and
+  description. Hotel/per-night categories also require the number of nights.
+  Attach a PDF, PNG, or JPEG receipt (up to 5 MiB), then click **Submit expense**.
+- The active policy checks run before saving. Valid claims with violations are
+  saved with every reason; invalid fields or unsupported receipts show errors
+  and retain the draft. Submissions without receipts are allowed and flagged
+  when the policy requires one. **Unflagged** still requires finance review.
+- Open **Reviewer view** or **View reviewer report** after submission. Totals,
+  grouping, filters, and exports include submitted claims. **Submitted expenses**
+  in both views also shows clean claims; open a claim to download its receipt.
 - Under **Report files**, choose an **Expense CSV**, a **Policy JSON**, or both,
   then click **Check selected files**. Filenames can differ from the samples;
   contents must follow the [loader formats](../docs/loader.md). Replacing one
@@ -55,6 +65,17 @@ export use the active snapshot; reloading the browser starts with sample files.
 Upload again if a snapshot is no longer available. Use the documented single
 API process; snapshots are not shared between multiple server workers.
 
+Form submissions and their receipt bytes are stored together in
+`artifacts/submissions.sqlite3`, which is ignored by Git. They survive API
+restarts and do not modify the source CSV. Default CSV submissions belong to the
+stored workspace. Uploaded CSV workspaces are identified by file contents;
+upload the same CSV again after a restart to recover their submissions. Changing
+only policy limits rechecks those claims; changing currency keeps them separate
+to avoid relabeling amounts. Retrying a submission does not create a second
+claim. Receipt contents are checked by file signature and served as downloads;
+the app does not extract receipt text. User/reviewer views share this local
+workspace and do not implement accounts or access roles.
+
 ## Frontend development
 
 Run the Python API in one terminal using the command above. In another:
@@ -74,6 +95,7 @@ page after React/CSS edits. There is no separate CORS configuration to maintain.
 | `demo.tsx` | Renders the supplied demo import pattern |
 | `components/ui/` | shadcn button, badge, dialog, and tab primitives |
 | `components/source-files.tsx` | Optional CSV/JSON selection, upload validation feedback, active filenames, sample reset |
+| `components/user-expense-view.tsx` | Expense form, receipt selection, policy guidance, result reasons, and submitted-claim list |
 | `styles/globals.css` | Tailwind imports, dark theme tokens, dashboard layout, responsive styles |
 | `lib/report.ts` | API types, fetching, query parameters, date/currency formatting |
 | `lib/utils.ts` | Shared class-name merging |
@@ -125,6 +147,11 @@ React tests cover data display, grouping, filters, dialogs, error recovery,
 uploads, and downloads. API upload tests verify custom names and policy limits,
 retained duplicate context, separate snapshots, rejected formats, and size
 limits. GitHub Actions runs Python tests plus frontend tests and build.
+Submission integration tests also check real policy results, persistence after
+restart, receipt downloads, validation/rollback, duplicate context, retries,
+concurrent requests, and custom file/currency isolation. React tests cover form
+entry, attachments, result reasons, reviewer updates, clean claims, field errors,
+required hotel nights, and retry/loading behavior.
 
 ## Assets and responsive behavior
 

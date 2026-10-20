@@ -50,7 +50,7 @@
 * { box-sizing: border-box; border-color: var(--border); }
 html { scroll-behavior: smooth; scroll-padding-top: 100px; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: "DM Sans", sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), select { cursor: pointer; }
 button:disabled { cursor: wait; }
@@ -89,12 +89,76 @@ a { text-decoration: none; color: inherit; }
 .source-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; }
 .source-actions > div { display: flex; gap: 8px; flex-shrink: 0; }
 .source-error { color: #fda4af; font-size: 13px; margin: 16px 0 0; overflow-wrap: anywhere; }
+.user-expense-view { padding: 52px 0 60px; }
+.submission-heading { max-width: 740px; margin-bottom: 30px; }
+.submission-heading h1 { font-family: "Poppins", sans-serif; font-weight: 500; font-size: clamp(30px, 4vw, 43px); letter-spacing: -1.4px; margin: 0 0 12px; }
+.submission-heading h1 > span { color: #bca5fb; }
+.submission-heading > p { color: #aaa2b5; font-size: 14px; line-height: 1.8; }
+.submission-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 24px; align-items: start; }
+.expense-form, .submission-policy { border: 1px solid var(--border); border-radius: 13px; background: #111114; padding: 27px; }
+.expense-form-heading { display: flex; gap: 12px; align-items: start; color: #c4b5dd; margin-bottom: 27px; }
+.expense-form-heading h2, .submission-policy h2 { font-size: 18px; color: #efeaf7; font-weight: 550; margin: 0 0 7px; }
+.expense-form-heading p, .submission-policy > p { color: #a39bab; font-size: 12px; margin: 0; line-height: 1.7; }
+.expense-form fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.expense-form fieldset:disabled { opacity: .65; }
+.expense-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 18px; }
+.expense-field { display: flex; flex-direction: column; gap: 9px; color: #d7cfdf; font-size: 13px; }
+.expense-fields input, .expense-fields select, .expense-fields textarea { width: 100%; min-width: 0; padding: 11px 12px; color: #f4effa; background: #1a181f; border: 1px solid #39313f; border-radius: 7px; color-scheme: dark; }
+.expense-fields textarea { resize: vertical; min-height: 97px; }
+.expense-fields input::placeholder, .expense-fields textarea::placeholder { color: #8e8598; }
+.expense-fields [aria-invalid="true"], .receipt-field [aria-invalid="true"] { border-color: #fb7185; }
+.expense-wide { grid-column: 1 / -1; }
+.field-error { color: #fda4af; display: block; font-size: 12px; line-height: 1.5; }
+.receipt-field { margin-top: 24px; padding: 20px; background: #1a171e; border: 1px dashed #4b3b59; border-radius: 9px; }
+.receipt-field > label { display: flex; gap: 9px; align-items: center; color: #e6d9f2; font-size: 14px; }
+.receipt-field > label > span { color: #a79ab4; font-size: 12px; }
+.receipt-field > p { color: #ab9eb6; font-size: 12px; line-height: 1.7; margin: 10px 0 14px; }
+.receipt-field > input { max-width: 100%; color: #c3b5ce; font-size: 12px; border-radius: 4px; }
+.receipt-field > input::file-selector-button { background: #37283f; color: #efdcfa; padding: 8px 10px; margin-right: 9px; border: 1px solid #51405d; border-radius: 5px; cursor: pointer; }
+.remove-receipt { display: flex; gap: 5px; align-items: center; margin-top: 13px; font-size: 12px; color: #c5b2d8; }
+.expense-submit { margin-top: 25px; display: flex; gap: 15px; align-items: center; justify-content: space-between; }
+.expense-submit > span { color: #a99eb4; font-size: 11px; }
+.expense-submit .gradient-button { height: 44px; font-size: 13px; }
+.submission-policy .dialog-eyebrow { margin-bottom: 18px; }
+.submission-policy-category { display: flex; flex-direction: column; gap: 12px; padding: 22px 0; margin-top: 10px; border-bottom: 1px solid #2b2532; }
+.submission-policy-category strong { font-size: 14px; color: #dfccef; }
+.submission-policy-category span { font-size: 13px; color: #afa0bf; }
+.submission-policy ol { padding: 5px 0 5px 18px; margin: 18px 0; color: #b4a5c2; font-size: 12px; line-height: 2.4; list-style-type: decimal; }
+.submission-result { display: flex; gap: 14px; padding: 23px; border: 1px solid #3c624b; background: #142019; border-radius: 10px; color: #a9d9bb; margin-bottom: 26px; overflow-wrap: anywhere; }
+.submission-result.flagged { border-color: #655033; background: #241e15; color: #e1c299; }
+.submission-result > svg { flex-shrink: 0; }
+.submission-result h2 { font-size: 17px; font-weight: 550; margin: 0 0 9px; outline-offset: 4px; }
+.submission-result p, .submission-result li { font-size: 13px; line-height: 1.7; }
+.submission-result ul { padding-left: 17px; margin: 10px 0; list-style-type: disc; }
+.submission-result button { padding-left: 0; margin-top: 6px; color: inherit; }
+.submission-error { margin-top: 20px; color: #fda4af; font-size: 13px; display: flex; gap: 9px; align-items: start; }
+.submission-error svg { flex-shrink: 0; }
+.submitted-expenses { margin-top: 40px; }
+.submitted-list, .submission-empty { background: #111114; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.submission-empty { display: flex; align-items: center; gap: 10px; padding: 25px; color: #a99ab8; font-size: 13px; }
+.submitted-row { display: flex; align-items: center; gap: 15px; width: 100%; padding: 19px 21px; text-align: left; border-bottom: 1px solid #26212b; }
+.submitted-row:hover { background: #1b1720; }
+.submitted-row > svg, .submitted-row > strong { flex-shrink: 0; }
+.submitted-identity { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 6px; }
+.submitted-identity strong { font-size: 13px; font-weight: 500; color: #e5daef; }
+.submitted-identity small { color: #a89ab5; font-size: 12px; overflow-wrap: anywhere; }
+.submission-status { padding: 5px 8px; border-radius: 5px; font-size: 11px; color: #b7d5c1; background: #203127; }
+.submission-status.flagged { color: #dfc09b; background: #382d21; }
+.receipt-download { display: flex; align-items: center; gap: 9px; color: #d3b9ef; font-size: 13px; padding: 13px 0; overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .source-panel { padding: 18px; }
   .source-heading, .source-actions { align-items: stretch; flex-direction: column; }
   .source-mode { align-self: start; }
   .source-inputs { grid-template-columns: 1fr; }
   .source-actions > div { flex-wrap: wrap; }
+  .submission-layout { grid-template-columns: 1fr; }
+  .expense-form, .submission-policy { padding: 20px; }
+  .expense-fields { grid-template-columns: 1fr; }
+  .expense-submit { align-items: stretch; flex-direction: column; }
+  .submission-heading h1 { font-size: 32px; }
+  .submitted-row { flex-wrap: wrap; gap: 13px; padding: 17px; }
+  .submitted-identity { flex-basis: calc(100% - 50px); }
+  .submission-status { margin-left: 45px; margin-right: auto; }
 }
 .hero { position: relative; display: grid; grid-template-columns: 1.28fr 1fr; gap: 72px; padding: 64px 0 49px; align-items: center; }
 .hero-glow { position: absolute; width: 800px; height: 420px; background: radial-gradient(ellipse, #72548b14, transparent 66%); top: -130px; left: -180px; pointer-events: none; }
@@ -284,4 +348,14 @@ a { text-decoration: none; color: inherit; }
   .search-field input, .employee-filter select { font-size: 12px; }
   .grouping-tabs [role="tab"], .export-button { font-size: 10px; }
   .issue-row, .workspace-footer { font-size: 9px; }
+}
+
+/* Five navigation destinations switch to the menu before they become tight. */
+@media (max-width: 760px) {
+  .mobile-toggle { display: block; }
+  .navigation-links { display: none; position: absolute; top: 64px; left: 0; right: 0; padding: 13px 22px; background: #100d15fa; border-bottom: 1px solid #ffffff10; flex-direction: column; align-items: stretch; gap: 6px; font-size: 13px; backdrop-filter: blur(16px); }
+  .navigation-links.is-open { display: flex; }
+  .navigation-links a, .navigation-links button { padding: 11px 0; }
+  .nav-active::after { display: none; }
+  .submitted-row .claim-category-icon { display: grid; flex-shrink: 0; }
 }
