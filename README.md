@@ -116,3 +116,10 @@ Engine tests cover limit boundaries, receipt modes, configurable duplicates,
 multiple violations, and compatibility between the two result interfaces.
 CLI tests cover menu selection, repeated viewing, invalid choices, graceful
 exit, file errors, and the complete command using the stored sample.
+
+## Continuous integration
+
+GitHub Actions runs pytest on Ubuntu with Python 3.11 for pull requests targeting
+`main` and pushes to `main`. View results and failure logs in the PR checks or
+the repository's **Actions** tab. The workflow is defined in
+[tests.yml](.github/workflows/tests.yml).
