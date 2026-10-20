@@ -170,3 +170,40 @@ def test_json_and_file_errors(tmp_path):
         load_policy(path)
     with pytest.raises(OSError):
         load_policy(tmp_path)
+
+
+def test_loads_utf8_bom_and_preserves_unicode(tmp_path, policy):
+    policy["name"] = "Travel policy for Chloë D’Souza"
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy, ensure_ascii=False), encoding="utf-8-sig")
+    assert load_policy(path) == policy
+
+
+def test_rejects_invalid_utf8(tmp_path):
+    path = tmp_path / "policy.json"
+    path.write_bytes(b'{"name": "\xff"}')
+    with pytest.raises(UnicodeDecodeError):
+        load_policy(path)
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_rejects_nonstandard_json_constants(tmp_path, policy, constant):
+    # Write an unquoted constant into an otherwise valid policy.
+    policy["categories"]["meals"]["max_amount"] = "RAW_CONSTANT"
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy).replace('"RAW_CONSTANT"', constant), encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid JSON constant"):
+        load_policy(path)
+
+
+@pytest.mark.parametrize("mode", ["always", "unconfigured"])
+def test_rejects_receipt_threshold_for_modes_that_do_not_use_it(tmp_path, policy, mode):
+    policy["categories"]["meals"]["receipt"] = {"mode": mode, "threshold": "25.00"}
+    with pytest.raises(ValueError, match="threshold: only valid for above_threshold mode"):
+        load_policy(write_policy(tmp_path, policy))
+
+
+def test_rejects_empty_categories(tmp_path, policy):
+    policy["categories"] = {}
+    with pytest.raises(ValueError, match="categories: expected a nonempty object"):
+        load_policy(write_policy(tmp_path, policy))

@@ -194,36 +194,53 @@ def test_real_sample_report_matches_planted_flags_and_exact_totals():
     report = build_report(loaded.expenses, detailed, currency=policy["currency"], errors=loaded.errors)
     assert report.total_expenses == 72
     assert len(report.errors) == 28
-    assert report.flagged_count == 29
-    assert report.violation_count == 44
-    assert report.total_flagged_amount == Decimal("2662.10")
+    invalid_dates = [
+        error for error in report.errors
+        if any(reason == "date: expected a real date in YYYY-MM-DD format" for reason in error.reasons)
+    ]
+    assert [error.expense_id for error in invalid_dates] == ["BAD-003", "BAD-018", "BAD-019", "BAD-026"]
+    assert not {error.expense_id for error in report.errors} & {
+        item.expense.id for item in report.flagged_expenses
+    }
+    assert report.flagged_count == 40
+    assert report.violation_count == 58
+    assert report.total_flagged_amount == Decimal("14887.09")
     assert {item.expense.id for item in report.flagged_expenses} == {
         "EXP-003", "EXP-004", "EXP-005", "EXP-006", "EXP-007",
-        "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
-        "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
-        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046",
+        "EXP-012", "EXP-013", "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
+        "EXP-022", "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
+        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046", "EXP-047",
         "EXP-049", "EXP-050", "EXP-051", "EXP-052", "EXP-053", "EXP-054", "EXP-055",
+        "EXP-057", "EXP-058", "EXP-061", "EXP-062", "EXP-063", "EXP-064", "EXP-065",
     }
     employee_groups = group_report(report)
     assert [(group.name, len(group.expenses), group.total_flagged_amount) for group in employee_groups] == [
-        ("Anika Rao", 8, Decimal("837.03")),
+        ("Amina Rahman", 3, Decimal("60.00")),
+        ("Anika Rao", 11, Decimal("1372.03")),
         ("Elena Brooks", 1, Decimal("60.00")),
         ("Karan Mehta", 2, Decimal("80.00")),
-        ("Kavya Iyer", 3, Decimal("800.02")),
+        ("Kavya Iyer", 4, Decimal("1100.02")),
         ("Lucía Torres", 3, Decimal("175.02")),
         ("Mei Tan", 3, Decimal("225.02")),
+        ("Rafael Costa", 4, Decimal("11329.99")),
         ("Rohan Desai", 3, Decimal("125.02")),
         ("Yusuf Khan", 6, Decimal("359.99")),
     ]
     rule_groups = group_report(report, group_by="rule")
     assert [(group.key, len(group.expenses), group.total_flagged_amount) for group in rule_groups] == [
         ("amount_limit", 17, Decimal("2162.07")),
+        ("future_expense_date", 1, Decimal("20.00")),
+        ("missing_hotel_nights", 1, Decimal("300.00")),
         ("missing_receipt", 22, Decimal("1355.06")),
+        ("restricted_category", 2, Decimal("95.00")),
+        ("review_required", 4, Decimal("11749.99")),
+        ("submission_deadline", 4, Decimal("135.00")),
         ("suspected_duplicate", 5, Decimal("260.00")),
+        ("unknown_category", 2, Decimal("11249.99")),
     ]
     for group_by in ("employee", "rule"):
         text = render_report(report, group_by=group_by)
-        assert "Total flagged amount: USD 2662.10" in text
+        assert "Total flagged amount: USD 14887.09" in text
         assert "REJECTED INPUT ROWS: 28" in text
         assert "EXP-002" not in text  # Meal exactly at the limit.
         assert "EXP-009" not in text  # No receipt, exactly at its threshold.
