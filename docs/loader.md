@@ -7,7 +7,7 @@ to expenses. Runtime code uses only the Python standard library.
 Run the commands below from the repository root.
 
 ```sh
-python3 -m scripts.sample_data --output data/expenses/sample_expenses.csv
+python3 -m scripts.sample_data --output artifacts/sample_expenses.csv
 python3 -m scripts.sample_data --output /tmp/expenses.csv --seed 42
 ```
 
@@ -28,12 +28,12 @@ for error in result.errors:
 Run from the repository root:
 
 ```sh
-python3 -m scripts.export_json --input data/expenses/sample_expenses.csv --output data/out/sample_expenses.json
+python3 -m scripts.export_json --input data/expenses/sample_expenses.csv --output artifacts/sample_expenses.json
 ```
 
 The exporter calls `load_expenses` and writes an object with `expenses` (validated
 records) and `errors` (rejected row IDs, line numbers, and reasons). The default
-sample produces 22 expense records and 8 errors. Dates use ISO strings, amounts
+sample produces 72 expense records and 28 errors. Dates use ISO strings, amounts
 use decimal strings to preserve precision, and receipts use JSON booleans.
 Both paths above are defaults, so `python3 -m scripts.export_json` also works.
 Use `--force` to replace an existing JSON file. The input CSV cannot be overwritten.
@@ -78,6 +78,8 @@ in loader validation.
 from loader.policy_loader import load_policy
 
 policy = load_policy("data/policy/policy.json")
+# Select the alternative policy with the same loader:
+travel_policy = load_policy("artifacts/business_travel.json")
 ```
 
 `load_policy` reads the external JSON file and validates required keys, types,
@@ -97,8 +99,8 @@ reading or enforcing the policy file.
 
 ## Sample scenarios
 
-The default sample has exactly 30 data rows (excluding the header): 22 valid
-expenses and 8 invalid rows. It includes examples for five policy scenarios:
+The default sample has exactly 100 data rows (excluding the header): 72 valid
+expenses and 28 invalid rows. It includes examples for five policy scenarios:
 category amount limits, required receipts, suspected duplicates, submission
 deadlines, and restricted categories. The external
 [JSON policy](../data/policy/policy.json) defines meals at $50 per expense,
@@ -135,8 +137,28 @@ grouped report usage.
 - Invalid cases: missing employee, negative amount, impossible date, nonnumeric amount,
   missing description, invalid receipt value, missing ID, and repeated ID.
 
+- `EXP-023`–`EXP-040`: meals, transport, and office supplies below/at/above
+  the receipt threshold and category limit, including combined violations.
+- `EXP-041`–`EXP-048`: single-night, multi-night, and long hotel stays,
+  one-cent nightly overages, a complimentary stay without receipt, and missing nights.
+- `EXP-049`–`EXP-055`: three matching dinners with multiple violations and
+  near matches differing in employee, date, amount, or category.
+- `EXP-056`–`EXP-061`: 29-day and very late submissions, submission before
+  the expense, leap day, and month/year boundaries.
+- `EXP-062`–`EXP-065`: unknown categories, zero-value `other`, and alcohol.
+- `EXP-066`–`EXP-069`: Unicode, whitespace trimming, mixed-case receipt
+  booleans, CSV commas/quotes/newlines, and accepted decimal formats.
+- `EXP-070`–`EXP-072`: hotel near matches differing only in nights and a one-cent fare.
+- `BAD-007`–`BAD-026`: missing fields, excessive precision, exponent notation,
+  NaN/infinity, currency symbols, thousands separators, invalid dates and nights,
+  and rows with multiple validation errors.
+
+These cases span 12 employees. Date ordering, missing hotel nights, and category
+review cases demonstrate gaps requiring manual review in the current engine;
+a `PASS` for these cases only reflects the implemented checks.
+
 All default records are fixed scenarios. `--extra-clean N` optionally adds N
-generated valid meals of $0.01–$25 with receipts beyond the default 30. Their
+generated valid meals of $0.01–$25 with receipts beyond the default 100. Their
 business details can coincide; duplicate-policy classification remains the
 rules engine's job.
 

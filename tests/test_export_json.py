@@ -13,8 +13,8 @@ def test_exports_validated_records_and_errors(tmp_path):
     source = generate_sample(tmp_path / "sample.csv")
     output = export_json(source, tmp_path / "nested" / "sample.json")
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert len(payload["expenses"]) == 22
-    assert len(payload["errors"]) == 8
+    assert len(payload["expenses"]) == 72
+    assert len(payload["errors"]) == 28
     assert payload["expenses"][0] == {
         "id": "EXP-001", "employee": "Alice Morgan", "date": "2026-10-05",
         "category": "meals", "amount": "20.00", "description": "Team lunch",
@@ -62,7 +62,7 @@ def test_protects_existing_output_and_source(tmp_path):
         export_json(source, output)
     assert output.read_text() == "existing"
     export_json(source, output, overwrite=True)
-    assert len(json.loads(output.read_text())["expenses"]) == 22
+    assert len(json.loads(output.read_text())["expenses"]) == 72
 
 
 def test_invalid_input_leaves_output_untouched(tmp_path):
@@ -81,7 +81,7 @@ def test_export_cli(tmp_path):
     command = [sys.executable, "-m", "scripts.export_json", "--input", str(source), "--output", str(output)]
     success = subprocess.run(command, capture_output=True, text=True)
     assert success.returncode == 0
-    assert len(json.loads(output.read_text())["expenses"]) == 22
+    assert len(json.loads(output.read_text())["expenses"]) == 72
     failure = subprocess.run(command, capture_output=True, text=True)
     assert failure.returncode == 1
     assert "Error:" in failure.stderr
