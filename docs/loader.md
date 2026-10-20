@@ -75,7 +75,7 @@ reserve IDs. Wrong field counts are row errors. Unreadable files, invalid UTF-8,
 malformed CSV syntax, and missing/duplicate/unknown headers raise file-level exceptions.
 
 Duplicate IDs are invalid records. Matching business details under different IDs
-remain valid for the future duplicate policy rule. Policy violations do not belong
+remain valid for the duplicate policy rule. Policy violations do not belong
 in loader validation.
 
 ## Policy loading and responsibility
@@ -104,7 +104,7 @@ reading or enforcing the policy file.
 ## Sample scenarios
 
 The default sample has exactly 30 data rows (excluding the header): 22 valid
-expenses and 8 invalid rows. It includes examples for five policy rules:
+expenses and 8 invalid rows. It includes examples for five policy scenarios:
 category amount limits, required receipts, suspected duplicates, submission
 deadlines, and restricted categories. The external
 [JSON policy](../data/policy/policy.json) defines meals at $50 per expense,
@@ -114,8 +114,12 @@ require receipts above $25. Submission is allowed within 30 days inclusive,
 alcohol is restricted, and `other` or unknown categories require review. The
 30-day deadline and alcohol restriction are project-chosen examples of the
 overview's rules; category limits and receipts follow the category screenshot. These
-are sample policy values; the loader does not enforce policy rules, and no rules
-engine is implemented yet.
+are sample policy values; the loader does not enforce policy rules. The rules
+engine currently implements amount limits, receipt requirements, and suspected
+duplicates. Submission deadlines, restricted categories, and manual-review
+settings are not yet enforced. See the [README](../README.md#policy-engine) for
+engine behavior and [violation reporting](../README.md#violation-reporting) for
+grouped report usage.
 
 - `EXP-001`: clean meal; `EXP-002`: exactly $50; `EXP-003`: $50.01.
 - `EXP-004`: $40 taxi under `transport` without receipt; `EXP-005`: $75 meal without receipt
