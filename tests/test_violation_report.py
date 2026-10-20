@@ -192,30 +192,39 @@ def test_real_sample_report_matches_planted_flags_and_exact_totals():
     policy = load_policy(ROOT / "data" / "policy" / "policy.json")
     detailed = RulesEngine(policy).run_detailed(loaded.expenses)
     report = build_report(loaded.expenses, detailed, currency=policy["currency"], errors=loaded.errors)
-    assert report.total_expenses == 22
-    assert len(report.errors) == 8
-    assert report.flagged_count == 10
-    assert report.violation_count == 12
-    assert report.total_flagged_amount == Decimal("917.03")
+    assert report.total_expenses == 72
+    assert len(report.errors) == 28
+    assert report.flagged_count == 29
+    assert report.violation_count == 44
+    assert report.total_flagged_amount == Decimal("2662.10")
     assert {item.expense.id for item in report.flagged_expenses} == {
         "EXP-003", "EXP-004", "EXP-005", "EXP-006", "EXP-007",
         "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
+        "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
+        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046",
+        "EXP-049", "EXP-050", "EXP-051", "EXP-052", "EXP-053", "EXP-054", "EXP-055",
     }
     employee_groups = group_report(report)
     assert [(group.name, len(group.expenses), group.total_flagged_amount) for group in employee_groups] == [
-        ("Alice Morgan", 8, Decimal("837.03")),
-        ("Jordan Lee", 2, Decimal("80.00")),
+        ("Anika Rao", 8, Decimal("837.03")),
+        ("Elena Brooks", 1, Decimal("60.00")),
+        ("Karan Mehta", 2, Decimal("80.00")),
+        ("Kavya Iyer", 3, Decimal("800.02")),
+        ("Lucía Torres", 3, Decimal("175.02")),
+        ("Mei Tan", 3, Decimal("225.02")),
+        ("Rohan Desai", 3, Decimal("125.02")),
+        ("Yusuf Khan", 6, Decimal("359.99")),
     ]
     rule_groups = group_report(report, group_by="rule")
     assert [(group.key, len(group.expenses), group.total_flagged_amount) for group in rule_groups] == [
-        ("amount_limit", 6, Decimal("777.03")),
-        ("missing_receipt", 4, Decimal("210.00")),
-        ("suspected_duplicate", 2, Decimal("80.00")),
+        ("amount_limit", 17, Decimal("2162.07")),
+        ("missing_receipt", 22, Decimal("1355.06")),
+        ("suspected_duplicate", 5, Decimal("260.00")),
     ]
     for group_by in ("employee", "rule"):
         text = render_report(report, group_by=group_by)
-        assert "Total flagged amount: USD 917.03" in text
-        assert "REJECTED INPUT ROWS: 8" in text
+        assert "Total flagged amount: USD 2662.10" in text
+        assert "REJECTED INPUT ROWS: 28" in text
         assert "EXP-002" not in text  # Meal exactly at the limit.
         assert "EXP-009" not in text  # No receipt, exactly at its threshold.
         assert "EXP-015" not in text  # Hotel exactly at the nightly limit.

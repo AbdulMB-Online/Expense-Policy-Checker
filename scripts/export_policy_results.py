@@ -67,7 +67,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expenses", type=Path, default=Path("data/expenses/sample_expenses.csv"))
     parser.add_argument("--policy", type=Path, default=Path("data/policy/policy.json"))
-    parser.add_argument("--output", type=Path, default=Path("data/out/policy_check_results.json"))
+    parser.add_argument("--output", type=Path, default=Path("artifacts/policy_check_results.json"))
     parser.add_argument("--force", action="store_true", help="Overwrite existing output")
     args = parser.parse_args()
     try:

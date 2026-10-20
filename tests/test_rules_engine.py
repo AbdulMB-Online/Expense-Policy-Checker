@@ -317,8 +317,8 @@ def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
     loaded = load_expenses(ROOT / "data" / "expenses" / "sample_expenses.csv")
     policy = load_policy(ROOT / "data" / "policy" / "policy.json")
     violations = RulesEngine(policy).run_all(loaded.expenses)
-    assert [expense.id for expense in loaded.expenses] == [f"EXP-{number:03d}" for number in range(1, 23)]
-    assert len(loaded.errors) == 8
+    assert [expense.id for expense in loaded.expenses] == [f"EXP-{number:03d}" for number in range(1, 73)]
+    assert len(loaded.errors) == 28
     assert "EXP-002" not in violations
     assert "EXP-009" not in violations
     assert "EXP-015" not in violations
@@ -339,6 +339,9 @@ def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
     assert set(violations) == {
         "EXP-003", "EXP-004", "EXP-005", "EXP-006", "EXP-007",
         "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
+        "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
+        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046",
+        "EXP-049", "EXP-050", "EXP-051", "EXP-052", "EXP-053", "EXP-054", "EXP-055",
     }
 
 

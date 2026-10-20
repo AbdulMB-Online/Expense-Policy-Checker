@@ -6,14 +6,17 @@ import sys
 import pytest
 
 from loader.expense_loader import load_expenses
+from loader.policy_loader import load_policy
+from rules.engine import RulesEngine
+from scripts.generate_example_policy import generate_policy
 from scripts.sample_data import generate_sample, sample_rows
 
 
 def test_default_sample_preserves_scenarios(tmp_path):
     result = load_expenses(generate_sample(tmp_path / "sample.csv"))
-    assert len(sample_rows()) == 30
-    assert len(result.expenses) == 22
-    assert len(result.errors) == 8
+    assert len(sample_rows()) == 100
+    assert len(result.expenses) == 72
+    assert len(result.errors) == 28
     expenses = {expense.id: expense for expense in result.expenses}
     assert expenses["EXP-002"].amount == Decimal("50.00")
     assert expenses["EXP-003"].amount == Decimal("50.01")
@@ -44,6 +47,7 @@ def test_default_sample_preserves_scenarios(tmp_path):
     assert expenses["EXP-022"].category == "other"
     assert {item.category for item in result.expenses} == {
         "meals", "hotel", "transport", "office_supplies", "other", "alcohol",
+        "training", "equipment",
     }
 
 
@@ -52,13 +56,86 @@ def test_repeatable_generation_and_extra_rows(tmp_path):
     second = generate_sample(tmp_path / "two.csv", extra_clean=100, seed=7)
     assert first.read_bytes() == second.read_bytes()
     result = load_expenses(first)
-    assert len(result.expenses) == 122
-    assert len(result.errors) == 8
+    assert len(result.expenses) == 172
+    assert len(result.errors) == 28
     generated = [item for item in result.expenses if item.id.startswith("CLEAN-")]
     assert len(generated) == 100
     assert all(0 < item.amount <= 25 and item.receipt_attached for item in generated)
     assert all(0 <= (item.submission_date - item.date).days <= 30 for item in generated)
+    assert {item.employee for item in generated} <= {"Anika Rao", "Karan Mehta", "Rohan Desai"}
     assert sample_rows(10, 7) != sample_rows(10, 8)
+
+
+def test_sample_covers_requested_manual_policy_scenarios(tmp_path):
+    loaded = load_expenses(generate_sample(tmp_path / "sample.csv"))
+    expenses = {item.id: item for item in loaded.expenses}
+    errors = {item.expense_id: item for item in loaded.errors}
+    policy = load_policy(Path(__file__).resolve().parents[1] / "data/policy/policy.json")
+    travel = load_policy(generate_policy(tmp_path / "business_travel.json"))
+
+    for expense_id in ("EXP-013", "EXP-065"):
+        assert expenses[expense_id].category in policy["restricted_categories"]
+    assert expenses["EXP-062"].category not in policy["categories"]
+    assert policy["unknown_category_action"] == "review_required"
+    for settings in (policy, travel):
+        assert expenses["EXP-063"].category not in settings["categories"]
+
+    deadline = policy["submission"]["max_days_after_expense"]
+    at_deadline = expenses["EXP-011"]
+    assert (at_deadline.submission_date - at_deadline.date).days == deadline
+    for expense_id in ("EXP-012", "EXP-014", "EXP-057", "EXP-061"):
+        late = expenses[expense_id]
+        assert (late.submission_date - late.date).days > deadline
+    future = expenses["EXP-058"]
+    assert future.date > future.submission_date
+
+    assert policy["categories"]["hotel"]["nights_required"]
+    assert expenses["EXP-047"].nights is None
+    for expense_id in ("BAD-021", "BAD-022", "BAD-023", "BAD-024"):
+        assert any(reason.startswith("nights:") for reason in errors[expense_id].reasons)
+
+    maximum_nights = travel["categories"]["hotel"]["max_nights_per_stay"]
+    assert expenses["EXP-044"].nights == maximum_nights
+    assert expenses["EXP-048"].nights == maximum_nights + 1
+    for expense_id in ("EXP-044", "EXP-048"):
+        stay = expenses[expense_id]
+        for settings in (policy, travel):
+            assert stay.amount <= Decimal(settings["categories"]["hotel"]["max_amount"]) * stay.nights
+        assert stay.receipt_attached
+    for expense_id in ("EXP-022", "EXP-064"):
+        assert policy["categories"][expenses[expense_id].category]["review_required"]
+
+
+def test_expanded_scenarios_cover_boundaries_duplicates_and_validation(tmp_path):
+    loaded = load_expenses(generate_sample(tmp_path / "sample.csv"))
+    policy = load_policy(Path(__file__).resolve().parents[1] / "data/policy/policy.json")
+    violations = RulesEngine(policy).run_detailed(loaded.expenses)
+    rules = {key: {item.rule_id for item in values} for key, values in violations.items()}
+    for start in (23, 29, 35):
+        assert f"EXP-{start:03d}" not in rules
+        assert f"EXP-{start + 1:03d}" not in rules
+        assert rules[f"EXP-{start + 2:03d}"] == {"missing_receipt"}
+        assert f"EXP-{start + 3:03d}" not in rules
+        assert rules[f"EXP-{start + 4:03d}"] == {"missing_receipt"}
+        assert rules[f"EXP-{start + 5:03d}"] == {"amount_limit", "missing_receipt"}
+    for number in (49, 50, 51):
+        assert rules[f"EXP-{number:03d}"] == {
+            "amount_limit", "missing_receipt", "suspected_duplicate",
+        }
+    for number in (52, 53, 54, 55):
+        assert "suspected_duplicate" not in rules[f"EXP-{number:03d}"]
+    assert "EXP-070" not in rules and "EXP-071" not in rules
+    expenses = {item.id: item for item in loaded.expenses}
+    assert len({item.employee for item in loaded.expenses}) == 12
+    assert expenses["EXP-066"].employee == "Chloë D’Souza"
+    assert expenses["EXP-066"].receipt_attached
+    assert expenses["EXP-067"].description == 'Client lunch, "working session"'
+    assert expenses["EXP-068"].description == "Parking\nreceipt details"
+    assert expenses["EXP-059"].date.isoformat() == "2024-02-29"
+    errors = {item.expense_id: item for item in loaded.errors}
+    assert len(errors["BAD-025"].reasons) == 3
+    assert len(errors["BAD-026"].reasons) == 3
+    assert errors["BAD-026"].line_number == 102  # Quoted newline occupies a physical line.
 
 
 def test_protects_existing_files_and_creates_parents(tmp_path):
@@ -68,7 +145,7 @@ def test_protects_existing_files_and_creates_parents(tmp_path):
         generate_sample(path, extra_clean=1)
     assert path.read_bytes() == original
     generate_sample(path, extra_clean=1, overwrite=True)
-    assert len(load_expenses(path).expenses) == 23
+    assert len(load_expenses(path).expenses) == 73
 
 
 def test_negative_count_does_not_create_file(tmp_path):
@@ -83,7 +160,7 @@ def test_cli(tmp_path):
     command = [sys.executable, "-m", "scripts.sample_data", "--output", str(path)]
     success = subprocess.run(command, capture_output=True, text=True)
     assert success.returncode == 0
-    assert "30 expense rows" in success.stdout
+    assert "100 expense rows" in success.stdout
     protected = subprocess.run(command, capture_output=True, text=True)
     assert protected.returncode == 1
     assert "Error:" in protected.stderr
