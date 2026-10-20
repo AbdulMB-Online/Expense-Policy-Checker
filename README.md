@@ -32,10 +32,12 @@ To regenerate the sample CSV or export validated records without policy checks:
 
 ```sh
 python3 -m scripts.sample_data --force
-python3 -m scripts.export_json --force
+python3 -m scripts.export_expenses --force
+python3 -m scripts.export_policy --force
 ```
 
-These utilities replace the sample CSV and validated-record JSON respectively.
+These utilities regenerate the sample CSV in `data/expenses/` and export
+validated expenses and policy to `data/out/`. `--force` replaces existing files.
 The default sample has 30 rows: 22 valid expenses and 8 rejected rows.
 
 See the [loader guide](docs/loader.md) for usage, input contracts, validation

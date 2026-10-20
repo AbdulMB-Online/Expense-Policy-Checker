@@ -28,15 +28,21 @@ for error in result.errors:
 Run from the repository root:
 
 ```sh
-python3 -m scripts.export_json --input data/expenses/sample_expenses.csv --output data/out/sample_expenses.json
+python3 -m scripts.export_expenses --input data/expenses/sample_expenses.csv --output data/out/sample_expenses.json
+python3 -m scripts.export_policy --input data/policy/policy.json --output data/out/policy.json
 ```
 
-The exporter calls `load_expenses` and writes an object with `expenses` (validated
-records) and `errors` (rejected row IDs, line numbers, and reasons). The default
-sample produces 22 expense records and 8 errors. Dates use ISO strings, amounts
-use decimal strings to preserve precision, and receipts use JSON booleans.
-Both paths above are defaults, so `python3 -m scripts.export_json` also works.
-Use `--force` to replace an existing JSON file. The input CSV cannot be overwritten.
+The expense exporter calls `load_expenses` and writes an object with `expenses`
+(validated records) and `errors` (rejected row IDs, line numbers, and reasons). The
+default sample produces 22 expense records and 8 errors. Dates use ISO strings,
+amounts use decimal strings to preserve precision, and receipts use JSON booleans.
+Both expense paths above are defaults, so `python3 -m scripts.export_expenses` also works.
+
+The policy exporter calls `load_policy` and writes the validated configuration as
+pretty-printed JSON. Monetary limits remain decimal strings. Defaults are
+`data/policy/policy.json` and `data/out/policy.json`.
+
+Use `--force` to replace an existing JSON file. Input files cannot be overwritten.
 File-level input errors stop export without changing an existing output file.
 
 ## CSV contract
