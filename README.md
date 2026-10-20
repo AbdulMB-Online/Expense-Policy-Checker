@@ -47,37 +47,49 @@ This checks `data/expenses/sample_expenses.csv` using `data/policy/policy.json`
 and writes `data/out/policy_check_results.json`. `--force` replaces the existing
 generated results file. The stored claims and policy are unchanged.
 
-The JSON output contains:
+## Generate artifacts
 
-- `summary`: accepted, passed, flagged, and rejected-row counts.
-- `results`: one entry per accepted expense, including amount, `PASS` or
-  `FLAGGED` status, and every violation reason.
-- `errors`: rejected input rows, available IDs, line numbers, and reasons.
-
-`PASS` means no violation was detected by the implemented amount, receipt, and
-duplicate checks. Other policy settings, including submission deadlines and
-restricted categories, still require manual review.
-
-To regenerate the sample CSV or export validated records without policy checks:
+All file generation lives in `scripts/`.
 
 ```sh
+# artifacts/sample_expenses.csv (reproducible copy of the sample)
 python3 -m scripts.sample_data --force
+
+# artifacts/sample_expenses.json (validated records and loader errors)
 python3 -m scripts.export_expenses --force
-python3 -m scripts.export_policy --force
+
+# artifacts/policy_check_results.json (summary, results, and loader errors)
+python3 -m scripts.export_policy_results --force
+
+# artifacts/business_travel.json (alternative policy)
+python3 -m scripts.generate_example_policy --force
+
+# artifacts/business_travel_results.json
+python3 -m scripts.export_policy_results \
+  --policy artifacts/business_travel.json \
+  --output artifacts/business_travel_results.json --force
 ```
 
-These utilities regenerate the sample CSV in `data/expenses/` and export
-validated expenses and policy to `data/out/`. `--force` replaces existing files.
-The default sample has 30 rows: 22 valid expenses and 8 rejected rows.
+`--force` replaces existing output; omit it to protect existing files.
+Use `--output PATH` for another destination. To check a generated or custom CSV,
+pass `--expenses PATH` to `export_policy_results` or `--input PATH` to `export_expenses`.
 
-See the [loader guide](docs/loader.md) for usage, input contracts, validation
-behavior, JSON output, and sample scenarios.
+The sample contains exactly 100 rows across 12 fictional employees. It covers
+amounts, receipts, duplicates, restricted and unknown categories, late submissions,
+future expense dates relative to submission, missing or invalid hotel nights,
+maximum stay length, and categories requiring review. The business travel example
+policy caps hotel stays at seven nights: `EXP-044` is at the cap and `EXP-048`
+exceeds it. The standard policy leaves stay length uncapped. See the
+[sample scenarios](docs/loader.md#sample-scenarios) for IDs and validation details.
 
-## Violation reporting
+## Policies and reports
 
-The [reporting module](reporting/violation_report.py) combines accepted
-expenses with detailed engine results and optional loader errors. It separates
-report construction from grouping and text formatting:
+
+Results include every detected violation and a `PASS` or `FLAGGED` status.
+Checks cover amounts, receipts, and suspected duplicates. Submission deadlines,
+restricted and unknown categories, future dates, missing hotel nights, stay lengths,
+and review-required classifications still require manual review. Invalid supplied
+night counts are rejected by the loader before policy evaluation.
 
 - `build_report(...)` creates an immutable report with summary counts and the
   unique flagged-claim total. It rejects duplicate input IDs and engine result

@@ -1,0 +1,933 @@
+{
+  "summary": {
+    "total_expenses": 72,
+    "passed": 43,
+    "flagged": 29,
+    "loader_errors": 28
+  },
+  "results": [
+    {
+      "expense_id": "EXP-001",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-002",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "50.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-003",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "50.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 50.01 exceeds the meals limit of 50.00 per expense."
+      ]
+    },
+    {
+      "expense_id": "EXP-004",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "40.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for transport expense 40.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-005",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "75.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-006",
+      "employee": "Jordan Lee",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "40.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Duplicate of EXP-007 on employee, date, category, amount, nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-007",
+      "employee": "Jordan Lee",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "40.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Duplicate of EXP-006 on employee, date, category, amount, nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-008",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "0.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-009",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "25.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-010",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "12.34",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-011",
+      "employee": "Alice Morgan",
+      "date": "2026-09-05",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-012",
+      "employee": "Alice Morgan",
+      "date": "2026-09-04",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-013",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "alcohol",
+      "amount": "15.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-014",
+      "employee": "Alice Morgan",
+      "date": "2026-09-04",
+      "category": "meals",
+      "amount": "75.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-015",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "400.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-016",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "402.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 402.00 exceeds the hotel limit of 200.00 per night for 2 nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-017",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "20.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for hotel expense 20.00."
+      ]
+    },
+    {
+      "expense_id": "EXP-018",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "100.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-019",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "100.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 100.01 exceeds the office_supplies limit of 100.00 per expense."
+      ]
+    },
+    {
+      "expense_id": "EXP-020",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "75.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-021",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "75.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 75.01 exceeds the transport limit of 75.00 per expense."
+      ]
+    },
+    {
+      "expense_id": "EXP-022",
+      "employee": "Alice Morgan",
+      "date": "2026-10-05",
+      "category": "other",
+      "amount": "500.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-023",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "24.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-024",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "25.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-025",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "25.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for meals expense 25.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-026",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "49.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-027",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "50.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for meals expense 50.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-028",
+      "employee": "Sam Patel",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "50.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 50.01 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 50.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-029",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "24.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-030",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "25.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-031",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "25.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for transport expense 25.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-032",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "74.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-033",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "75.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for transport expense 75.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-034",
+      "employee": "María García",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "75.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 75.01 exceeds the transport limit of 75.00 per expense.",
+        "Receipt is missing for transport expense 75.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-035",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "24.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-036",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "25.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-037",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "25.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for office_supplies expense 25.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-038",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "99.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-039",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "100.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for office_supplies expense 100.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-040",
+      "employee": "Chen Wei",
+      "date": "2026-10-05",
+      "category": "office_supplies",
+      "amount": "100.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 100.01 exceeds the office_supplies limit of 100.00 per expense.",
+        "Receipt is missing for office_supplies expense 100.01, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-041",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "199.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-042",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "200.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-043",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "200.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 200.01 exceeds the hotel limit of 200.00 per night for 1 night.",
+        "Receipt is missing for hotel expense 200.01."
+      ]
+    },
+    {
+      "expense_id": "EXP-044",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "600.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-045",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "600.01",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 600.01 exceeds the hotel limit of 200.00 per night for 3 nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-046",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "0.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for hotel expense 0.00."
+      ]
+    },
+    {
+      "expense_id": "EXP-047",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "300.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-048",
+      "employee": "Priya Shah",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "2000.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-049",
+      "employee": "Omar Hassan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 60.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 60.00, which is above the 25.00 threshold.",
+        "Duplicate of EXP-050, EXP-051 on employee, date, category, amount, nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-050",
+      "employee": "Omar Hassan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 60.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 60.00, which is above the 25.00 threshold.",
+        "Duplicate of EXP-049, EXP-051 on employee, date, category, amount, nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-051",
+      "employee": "Omar Hassan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 60.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 60.00, which is above the 25.00 threshold.",
+        "Duplicate of EXP-049, EXP-050 on employee, date, category, amount, nights."
+      ]
+    },
+    {
+      "expense_id": "EXP-052",
+      "employee": "Nora Williams",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 60.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 60.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-053",
+      "employee": "Omar Hassan",
+      "date": "2026-10-04",
+      "category": "meals",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 60.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 60.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-054",
+      "employee": "Omar Hassan",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "59.99",
+      "status": "FLAGGED",
+      "violations": [
+        "Amount 59.99 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 59.99, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-055",
+      "employee": "Omar Hassan",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "60.00",
+      "status": "FLAGGED",
+      "violations": [
+        "Receipt is missing for transport expense 60.00, which is above the 25.00 threshold."
+      ]
+    },
+    {
+      "expense_id": "EXP-056",
+      "employee": "Fatima Ali",
+      "date": "2026-09-06",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-057",
+      "employee": "Fatima Ali",
+      "date": "2026-08-01",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-058",
+      "employee": "Fatima Ali",
+      "date": "2026-10-06",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-059",
+      "employee": "Fatima Ali",
+      "date": "2024-02-29",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-060",
+      "employee": "Fatima Ali",
+      "date": "2025-12-31",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-061",
+      "employee": "Fatima Ali",
+      "date": "2026-01-31",
+      "category": "meals",
+      "amount": "20.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-062",
+      "employee": "Lucas Silva",
+      "date": "2026-10-05",
+      "category": "training",
+      "amount": "1250.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-063",
+      "employee": "Lucas Silva",
+      "date": "2026-10-05",
+      "category": "equipment",
+      "amount": "9999.99",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-064",
+      "employee": "Lucas Silva",
+      "date": "2026-10-05",
+      "category": "other",
+      "amount": "0.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-065",
+      "employee": "Lucas Silva",
+      "date": "2026-10-05",
+      "category": "alcohol",
+      "amount": "80.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-066",
+      "employee": "Zoë O’Connor",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "12.50",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-067",
+      "employee": "Zoë O’Connor",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "18.5",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-068",
+      "employee": "Zoë O’Connor",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "9.50",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-069",
+      "employee": "Zoë O’Connor",
+      "date": "2026-10-05",
+      "category": "meals",
+      "amount": "7",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-070",
+      "employee": "Avery Kim",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "180.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-071",
+      "employee": "Avery Kim",
+      "date": "2026-10-05",
+      "category": "hotel",
+      "amount": "180.00",
+      "status": "PASS",
+      "violations": []
+    },
+    {
+      "expense_id": "EXP-072",
+      "employee": "Avery Kim",
+      "date": "2026-10-05",
+      "category": "transport",
+      "amount": "0.01",
+      "status": "PASS",
+      "violations": []
+    }
+  ],
+  "errors": [
+    {
+      "line_number": 12,
+      "expense_id": "BAD-001",
+      "reasons": [
+        "employee: required field is empty"
+      ]
+    },
+    {
+      "line_number": 13,
+      "expense_id": "BAD-002",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 14,
+      "expense_id": "BAD-003",
+      "reasons": [
+        "date: expected a real date in YYYY-MM-DD format"
+      ]
+    },
+    {
+      "line_number": 15,
+      "expense_id": "BAD-004",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 16,
+      "expense_id": "BAD-005",
+      "reasons": [
+        "description: required field is empty"
+      ]
+    },
+    {
+      "line_number": 17,
+      "expense_id": "BAD-006",
+      "reasons": [
+        "receipt_attached: expected true or false"
+      ]
+    },
+    {
+      "line_number": 18,
+      "expense_id": null,
+      "reasons": [
+        "id: required field is empty"
+      ]
+    },
+    {
+      "line_number": 19,
+      "expense_id": "EXP-001",
+      "reasons": [
+        "id: duplicates a previously accepted record"
+      ]
+    },
+    {
+      "line_number": 83,
+      "expense_id": "BAD-007",
+      "reasons": [
+        "category: required field is empty"
+      ]
+    },
+    {
+      "line_number": 84,
+      "expense_id": "BAD-008",
+      "reasons": [
+        "amount: required field is empty"
+      ]
+    },
+    {
+      "line_number": 85,
+      "expense_id": "BAD-009",
+      "reasons": [
+        "receipt_attached: required field is empty"
+      ]
+    },
+    {
+      "line_number": 86,
+      "expense_id": "BAD-010",
+      "reasons": [
+        "date: required field is empty"
+      ]
+    },
+    {
+      "line_number": 87,
+      "expense_id": "BAD-011",
+      "reasons": [
+        "submission_date: required field is empty"
+      ]
+    },
+    {
+      "line_number": 88,
+      "expense_id": "BAD-012",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 89,
+      "expense_id": "BAD-013",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 90,
+      "expense_id": "BAD-014",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 91,
+      "expense_id": "BAD-015",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 92,
+      "expense_id": "BAD-016",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 93,
+      "expense_id": "BAD-017",
+      "reasons": [
+        "amount: expected a nonnegative decimal with at most two decimal places"
+      ]
+    },
+    {
+      "line_number": 94,
+      "expense_id": "BAD-018",
+      "reasons": [
+        "date: expected a real date in YYYY-MM-DD format"
+      ]
+    },
+    {
+      "line_number": 95,
+      "expense_id": "BAD-019",
+      "reasons": [
+        "date: expected a real date in YYYY-MM-DD format"
+      ]
+    },
+    {
+      "line_number": 96,
+      "expense_id": "BAD-020",
+      "reasons": [
+        "submission_date: expected a real date in YYYY-MM-DD format"
+      ]
+    },
+    {
+      "line_number": 97,
+      "expense_id": "BAD-021",
+      "reasons": [
+        "nights: expected a positive integer"
+      ]
+    },
+    {
+      "line_number": 98,
+      "expense_id": "BAD-022",
+      "reasons": [
+        "nights: expected a positive integer"
+      ]
+    },
+    {
+      "line_number": 99,
+      "expense_id": "BAD-023",
+      "reasons": [
+        "nights: expected a positive integer"
+      ]
+    },
+    {
+      "line_number": 100,
+      "expense_id": "BAD-024",
+      "reasons": [
+        "nights: expected a positive integer"
+      ]
+    },
+    {
+      "line_number": 101,
+      "expense_id": "BAD-025",
+      "reasons": [
+        "employee: required field is empty",
+        "amount: expected a nonnegative decimal with at most two decimal places",
+        "receipt_attached: expected true or false"
+      ]
+    },
+    {
+      "line_number": 102,
+      "expense_id": "BAD-026",
+      "reasons": [
+        "description: required field is empty",
+        "date: expected a real date in YYYY-MM-DD format",
+        "submission_date: expected a real date in YYYY-MM-DD format"
+      ]
+    }
+  ]
+}

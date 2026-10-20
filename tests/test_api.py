@@ -52,16 +52,19 @@ def test_real_pipeline_summary_and_rule_identities(project):
     assert result.status_code == 200
     data = result.json()
     assert data["overview"] == {
-        "accepted_count": 22, "unflagged_count": 12, "flagged_count": 10,
-        "violation_count": 12, "rejected_count": 8, "total_flagged_amount": "917.03",
+        "accepted_count": 72, "unflagged_count": 43, "flagged_count": 29,
+        "violation_count": 44, "rejected_count": 28, "total_flagged_amount": "2662.10",
     }
     assert data["summary"] == data["overview"]
-    assert len(data["claims"]) == 22
+    assert len(data["claims"]) == 72
     assert [(group["name"], group["total_amount"]) for group in data["groups"]["employee"]] == [
-        ("Alice Morgan", "837.03"), ("Jordan Lee", "80.00"),
+        ("Anika Rao", "837.03"), ("Elena Brooks", "60.00"),
+        ("Karan Mehta", "80.00"), ("Kavya Iyer", "800.02"),
+        ("Lucía Torres", "175.02"), ("Mei Tan", "225.02"),
+        ("Rohan Desai", "125.02"), ("Yusuf Khan", "359.99"),
     ]
     assert [(group["id"], len(group["claims"])) for group in data["groups"]["rule"]] == [
-        ("amount_limit", 6), ("missing_receipt", 4), ("suspected_duplicate", 2),
+        ("amount_limit", 17), ("missing_receipt", 22), ("suspected_duplicate", 5),
     ]
     multiple = next(claim for claim in data["claims"] if claim["id"] == "EXP-005")
     assert {item["rule_id"] for item in multiple["violations"]} == {"amount_limit", "missing_receipt"}
@@ -71,13 +74,14 @@ def test_real_pipeline_summary_and_rule_identities(project):
 
 
 def test_employee_filter_keeps_overview_and_global_input_errors(project):
-    data = get(create_app(project), "/api/report?employee=Jordan%20Lee").json()
-    assert data["overview"]["total_flagged_amount"] == "917.03"
+    data = get(create_app(project), "/api/report?employee=Karan%20Mehta").json()
+    assert data["overview"]["total_flagged_amount"] == "2662.10"
     assert data["summary"]["total_flagged_amount"] == "80.00"
     assert data["summary"]["flagged_count"] == 2
-    assert {claim["employee"] for claim in data["claims"]} == {"Jordan Lee"}
-    assert data["employees"] == ["Alice Morgan", "Jordan Lee"]
-    assert len(data["errors"]) == 8
+    assert {claim["employee"] for claim in data["claims"]} == {"Karan Mehta"}
+    assert len(data["employees"]) == 12
+    assert "Karan Mehta" in data["employees"]
+    assert len(data["errors"]) == 28
 
 
 def test_search_does_not_remove_duplicate_evaluation_context(project):
@@ -94,7 +98,7 @@ def test_employee_filter_preserves_custom_cross_employee_duplicates(project):
     policy = json.loads(policy_path.read_text())
     policy["duplicates"]["key_fields"] = ["amount"]
     policy_path.write_text(json.dumps(policy))
-    data = get(create_app(project), "/api/report?employee=Jordan%20Lee").json()
+    data = get(create_app(project), "/api/report?employee=Karan%20Mehta").json()
     assert all("EXP-004" in claim["violations"][0]["reason"] for claim in data["claims"])
 
 
@@ -109,13 +113,13 @@ def test_no_matches_returns_an_empty_scoped_report(project):
 def test_download_matches_filtered_report_and_preserves_data(project, grouping):
     inputs = [project / "data" / "expenses" / "sample_expenses.csv", project / "data" / "policy" / "policy.json"]
     original = [path.read_bytes() for path in inputs]
-    result = get(create_app(project), f"/api/report/download?group_by={grouping}&employee=Jordan%20Lee")
+    result = get(create_app(project), f"/api/report/download?group_by={grouping}&employee=Karan%20Mehta")
     assert result.status_code == 200
     assert result.headers["content-type"].startswith("text/plain")
     assert f'expense-report-{grouping}.txt' in result.headers["content-disposition"]
     assert "Total flagged amount: USD 80.00" in result.text
-    assert "REJECTED INPUT ROWS: 8" in result.text
-    assert "EMPLOYEE: Alice Morgan" not in result.text
+    assert "REJECTED INPUT ROWS: 28" in result.text
+    assert "EMPLOYEE: Anika Rao" not in result.text
     assert [path.read_bytes() for path in inputs] == original
 
 
@@ -149,7 +153,7 @@ def test_unusable_data_has_a_readable_service_error(project, relative, contents)
 
 def test_empty_claims_and_reload_after_changes(project):
     app = create_app(project)
-    assert get(app, "/api/report").json()["overview"]["accepted_count"] == 22
+    assert get(app, "/api/report").json()["overview"]["accepted_count"] == 72
     (project / "data" / "expenses" / "sample_expenses.csv").write_text(",".join(FIELDS) + "\n")
     data = get(app, "/api/report").json()
     assert data["overview"]["accepted_count"] == 0
@@ -180,7 +184,7 @@ def test_upload_uses_contents_and_names_and_preserves_stored_files(project):
     assert data["dataset_id"]
     assert data["policy"]["categories"]["meals"]["max_amount"] == "100.00"
     assert not any(v["rule_id"] == "amount_limit" for claim in data["claims"] if claim["id"] == "EXP-005" for v in claim["violations"])
-    assert data["overview"]["rejected_count"] == 8
+    assert data["overview"]["rejected_count"] == 28
     stored = get(app, "/api/report").json()
     assert stored["dataset_id"] is None
     assert stored["policy"]["categories"]["meals"]["max_amount"] == "50.00"
@@ -197,7 +201,7 @@ def test_uploaded_context_survives_filters_refresh_and_download(project, groupin
     files["expenses"] = ("renamed.txt", files["expenses"][1].replace(b"40.00", b"41.00"), "application/octet-stream")
     data = upload(app, files).json()
     token = data["dataset_id"]
-    filtered = get(app, f"/api/report?dataset={token}&employee=Jordan%20Lee&search=EXP-006").json()
+    filtered = get(app, f"/api/report?dataset={token}&employee=Karan%20Mehta&search=EXP-006").json()
     assert filtered["summary"]["total_flagged_amount"] == "41.00"
     assert filtered["claims"][0]["violations"][0]["rule_id"] == "suspected_duplicate"
     assert filtered["overview"] == data["overview"]
@@ -231,7 +235,7 @@ def test_failed_upload_has_file_reason_and_keeps_previous_snapshot(project, fiel
     assert result.status_code == 422
     assert result.json()["detail"].startswith("My invalid file:")
     assert "expense-upload-" not in result.text
-    assert get(app, f"/api/report?dataset={token}").json()["overview"]["total_flagged_amount"] == "917.03"
+    assert get(app, f"/api/report?dataset={token}").json()["overview"]["total_flagged_amount"] == "2662.10"
 
 
 def test_uploaded_paths_are_only_display_names_and_need_no_stored_files(tmp_path):

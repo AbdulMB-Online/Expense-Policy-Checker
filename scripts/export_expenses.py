@@ -36,7 +36,7 @@ def export_expenses(source: str | Path, output: str | Path, *, overwrite: bool =
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=Path("data/expenses/sample_expenses.csv"))
-    parser.add_argument("--output", type=Path, default=Path("data/out/sample_expenses.json"))
+    parser.add_argument("--output", type=Path, default=Path("artifacts/sample_expenses.json"))
     parser.add_argument("--force", action="store_true", help="Overwrite existing output")
     args = parser.parse_args()
     try:
