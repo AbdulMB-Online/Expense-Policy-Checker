@@ -111,8 +111,8 @@ overview's rules; category limits and receipts follow the category screenshot. T
 are sample policy values; the loader does not enforce policy rules. The rules
 engine currently implements amount limits, receipt requirements, and suspected
 duplicates. Submission deadlines, restricted categories, and manual-review
-settings are not yet enforced. See the [README](../README.md#policy-engine) for
-engine behavior and [violation reporting](../README.md#violation-reporting) for
+settings are not yet enforced. See the
+[violation reporting guide](../README.md#violation-reporting) for
 grouped report usage.
 
 - `EXP-001`: clean meal; `EXP-002`: exactly $50; `EXP-003`: $50.01.
