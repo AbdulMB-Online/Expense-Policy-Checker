@@ -8,6 +8,7 @@ from secrets import token_urlsafe
 
 from backend.config import ENGINE_VERSION
 from backend.database.errors import RecordNotFoundError
+from backend.database.policies import policy_record
 from backend.database.serialization import expense_from_record
 from backend.database.submissions import SubmissionStore
 from backend.database.workspace import WorkspaceStore
@@ -135,6 +136,7 @@ class ReportService:
             "groups": groups,
             "errors": [asdict(error) for error in loaded.errors],
             "policy": {
+                "id": policy_record(policy)["id"],
                 "name": policy["name"],
                 "version": policy["version"],
                 "categories": policy["categories"],

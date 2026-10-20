@@ -25,14 +25,25 @@ it("starts with demo sign-in and keeps employee identity fixed without reviewer 
     return response(ownReport);
   }));
   render(<DemoSession />);
-  await user.click(await screen.findByRole("button", { name: /Alice Morgan.*Employee/ }));
+  await screen.findByRole("radio", { name: "Alice Morgan" });
+  expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+  await user.type(screen.getByRole("textbox", { name: "Find your account" }), "nobody");
+  expect(screen.getByRole("status")).toHaveTextContent("No accounts found");
+  await user.click(screen.getByRole("button", { name: "Clear account search" }));
+  await user.type(screen.getByRole("textbox", { name: "Find your account" }), "alice");
+  expect(screen.queryByRole("radio", { name: "Morgan Finance" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("radio", { name: "Alice Morgan" }));
+  expect(screen.getByRole("radio", { name: "Alice Morgan" })).toBeChecked();
+  expect(screen.queryByText("Registered accounts only.")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Sign in" }));
   const identity = await screen.findByLabelText("Employee name");
   expect(identity).toHaveValue("Alice Morgan");
   expect(identity).toHaveAttribute("readonly");
-  expect(screen.queryByRole("link", { name: "Reviewer view" })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Saved datasets")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Expense review" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Check selected files" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Switch account" }));
-  expect(await screen.findByRole("heading", { name: "Choose a demo account" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Welcome back." })).toBeInTheDocument();
 });
 
 it("submits individual decisions against the displayed revision and run and shows history", async () => {

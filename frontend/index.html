@@ -4,8 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#101722" />
     <meta name="description" content="A clearer view of every expense. Review policy flags, employee claims, and input issues in one place." />
+    <script>
+      try {
+        const dark = localStorage.getItem("expense-theme") !== "light";
+        document.documentElement.classList.toggle("dark", dark);
+        document.querySelector('meta[name="theme-color"]').content = dark ? "#101722" : "#f4f7fb";
+      } catch {}
+    </script>
     <title>ExpenseCheck — Expense Policy Checker</title>
   </head>
   <body>

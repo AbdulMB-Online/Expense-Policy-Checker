@@ -1,6 +1,6 @@
 """HTTP endpoints for workspace."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile
 
 from backend.api.dependencies import Services, current_user, get_services, reviewer
 from backend.api.responses import file_response
@@ -41,3 +41,15 @@ def download_artifact(
 ):
     name, media_type, contents = services.workspace.artifacts.artifact(artifact_id)
     return file_response(name, media_type, contents)
+
+
+@router.get("/api/policies")
+def policies(user=Depends(reviewer), services: Services = Depends(get_services)):
+    return services.policies.list()
+
+
+@router.post("/api/policies", status_code=201)
+def save_policy(
+    policy: UploadFile, user=Depends(reviewer), services: Services = Depends(get_services)
+):
+    return services.policies.save(policy, user)

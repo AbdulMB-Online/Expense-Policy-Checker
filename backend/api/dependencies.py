@@ -9,6 +9,7 @@ from backend.database.errors import AccessError
 from backend.database.submissions import SubmissionStore
 from backend.database.workspace import WorkspaceStore
 from backend.services.expenses import ExpenseService
+from backend.services.policies import PolicyService
 from backend.services.reports import ReportService
 from backend.services.sources import SourceStore
 
@@ -19,6 +20,7 @@ class Services:
     submissions: SubmissionStore
     reports: ReportService
     expenses: ExpenseService
+    policies: PolicyService
 
     @classmethod
     def create(cls, root: Path) -> "Services":
@@ -26,7 +28,13 @@ class Services:
         submissions = SubmissionStore(root)
         sources = SourceStore(root, workspace)
         reports = ReportService(sources, submissions, workspace)
-        return cls(workspace, submissions, reports, ExpenseService(reports, submissions, workspace))
+        return cls(
+            workspace,
+            submissions,
+            reports,
+            ExpenseService(reports, submissions, workspace),
+            PolicyService(sources),
+        )
 
 
 def get_services(request: Request) -> Services:

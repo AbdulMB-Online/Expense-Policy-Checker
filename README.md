@@ -7,11 +7,15 @@ reports grouped by employee or policy rule for finance review.
 ## Browser dashboard
 
 A React dashboard supports custom CSV/policy JSON uploads, employee/rule views,
-filters, claim details, rejected records, and report downloads. Its **User view**
+filters, claim details, rejected records, and report downloads. Its employee workspace
 accepts expense submissions and receipt attachments, checks the policy, and adds
 saved claims to the dashboard report. Demo employee and reviewer accounts have
 separate access, with individual approvals and review history. See the
 [dashboard setup guide](frontend/README.md) to install and run it locally.
+
+Sign-in loads registered accounts from the SQLite `users` table and routes each
+account by its saved role. Reviewers can create and select policies in a durable
+policy library. The interface supports persistent dark and light themes.
 
 ## Backend structure
 

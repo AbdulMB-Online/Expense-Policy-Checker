@@ -1,7 +1,8 @@
 # Expense dashboard
 
-React + TypeScript + Vite, with Tailwind CSS and shadcn/ui. The design adapts
-the supplied SaaS template to expense review. Data comes from the existing Python
+React + TypeScript + Vite, with Tailwind CSS and shadcn/ui. The interface uses a
+finance workspace with dark and light themes, sidebar navigation, grouped claim review, and
+responsive employee submission forms. Data comes from the existing Python
 loaders, rules engine, and reporting module through a local FastAPI service.
 
 ## Run the dashboard
@@ -20,7 +21,13 @@ Open **http://127.0.0.1:8000**. The Python server serves the built React app and
 API together. Stop it with Ctrl+C. Build the frontend before starting this
 server; rebuild after frontend edits.
 
-Choose a demo account when the app opens. **Refresh report** reloads the inputs
+Search your name, select your account tile, and click **Sign in**. Accounts come from the
+SQLite `users` table; the server returns the stored role and the dashboard opens
+the matching workspace. Demo accounts do not require a password. There is no
+role selector or reviewer/employee view switch inside the dashboard.
+
+Dark mode is the default. The header theme control switches between dark and
+light and remembers the preference in the browser. **Refresh report** reloads the inputs
 and uses saved check results when the expense revisions, policy, and engine are unchanged.
 The CLI remains available with `python3 -m backend.scripts.check_expenses`.
 
@@ -34,7 +41,7 @@ The CLI remains available with `python3 -m backend.scripts.check_expenses`.
   saved with every reason; invalid fields or unsupported receipts show errors
   and retain the draft. Submissions without receipts are allowed and flagged
   when the policy requires one. **Unflagged** still requires finance review.
-- Choose Morgan Finance or Taylor Finance to open **Reviewer view**. Totals,
+- Sign in as Morgan Finance or Taylor Finance to open **Expense review**. Totals,
   grouping, filters, and exports include submitted claims. **All expenses** also
   includes unflagged imported claims. Open a claim to download its receipt and
   approve it, reject it, or request changes. Rejections and change requests need
@@ -46,9 +53,20 @@ The CLI remains available with `python3 -m backend.scripts.check_expenses`.
   A form expense with requested changes can be corrected and resubmitted from
   its details. The previous revision, receipt, findings, and decision are retained.
   Correct imported expenses through a new CSV upload.
-- Use **Saved datasets** to reopen uploaded inputs after a restart. The selected
-  dataset is remembered per demo account in the browser. Use **Switch account**
+- Reviewers can use **Previously imported files** under **Report files** to reopen
+  uploaded inputs after a restart. The selected import is remembered per account
+  in the browser. Import controls are not shown on the employee submission page. Use **Switch account**
   to move between employees and reviewers.
+- Reviewers can open **Policy** in the sidebar or click the active policy above
+  the report. The library includes the default policy, uploaded policies, and
+  policies created with **New policy**. Choose a starting policy, set its name,
+  currency, category limits, receipt requirements, restricted categories,
+  submission deadline, and duplicate checks, then click **Save policy**.
+- Select a saved policy and click **Use policy** to recheck the current expense
+  dataset. Saving a policy alone does not change the active report. Policies are
+  stored in SQLite and survive restarts. A different currency uses a separate
+  submission workspace; existing amounts are not converted. Employees can view
+  their current policy but cannot create or apply policies.
 - Under **Report files**, choose an **Expense CSV**, a **Policy JSON**, or both,
   then click **Check selected files**. Filenames can differ from the samples;
   contents must follow the [loader formats](../docs/loader.md). Replacing one

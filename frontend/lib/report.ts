@@ -31,7 +31,7 @@ export interface Report {
   submissions: Claim[];
   groups: Record<Grouping, ReportGroup[]>;
   errors: { line_number: number; expense_id: string | null; reasons: string[] }[];
-  policy: { name: string; version: string; categories: Record<string, CategoryPolicy>; active_rules: string[] };
+  policy: { id?: string; name: string; version: string; categories: Record<string, CategoryPolicy>; active_rules: string[] };
 }
 
 export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {

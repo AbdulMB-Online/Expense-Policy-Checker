@@ -21,6 +21,8 @@ describe("dashboard", () => {
     render(<Component user={demoReviewer} />);
     expect(await screen.findByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
     expect(screen.getByText("Claims checked")).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Submit an expense" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "User view" })).not.toBeInTheDocument();
     expect(screen.getAllByText("$115.00").length).toBeGreaterThan(0);
     expect(fetch).toHaveBeenCalledWith("/api/report?", expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });

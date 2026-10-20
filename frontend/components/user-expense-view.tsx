@@ -21,9 +21,9 @@ export function SubmittedExpenses({ report, onClaim, all = false }: { report: Re
   </section>;
 }
 
-export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onClaim, user }: {
+export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user }: {
   report: Report | null; busy: boolean; onBusy: (busy: boolean) => void;
-  onSaved: (report: Report) => void; onReview: () => void; onClaim: (claim: Claim) => void;
+  onSaved: (report: Report) => void; onClaim: (claim: Claim) => void;
   user: DemoUser;
 }) {
   const prefix = useId();
@@ -118,9 +118,9 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onCla
   }
 
   return <section className="user-expense-view" id="submit-expense" aria-label="User expense submission">
-    <header className="submission-heading"><div className="eyebrow"><span className="eyebrow-dot" />YOUR EXPENSES, READY FOR REVIEW</div><h1>Submit an expense<span>.</span></h1><p>Add the details and a receipt. We’ll check the active policy and add your claim to the report.</p></header>
+    <header className="submission-heading"><h1>Submit an expense</h1><p>Add the details and a receipt. We’ll check the active policy and add your claim to the report.</p></header>
     {!report ? <div className="submission-empty" role="status">Loading the active expense policy…</div> : <>
-      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}{user.role === "reviewer" && <Button variant="ghost" onClick={onReview}>View reviewer report <ArrowRight size={14} /></Button>}</div></div>}
+      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}</div></div>}
       <div className="submission-layout">
         <form ref={form} className="expense-form" aria-label="Submit an expense" onSubmit={submit}>
           <div className="expense-form-heading"><FileText size={20} /><div><h2>Expense details</h2><p>All fields are required unless marked optional.</p></div></div>
@@ -139,7 +139,7 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onReview, onCla
             <div className="expense-submit"><span>Policy flags are saved for finance review.</span><Button type="submit" className="gradient-button" disabled={!draft.category}>{sending ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}{sending ? "Submitting…" : "Submit expense"}</Button></div>
           </fieldset>
         </form>
-        <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />ACTIVE POLICY</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{categoryLabel(draft.category)}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Enter the claim details.</li><li>Attach the supporting receipt.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
+        <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />Active policy</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{categoryLabel(draft.category)}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Enter the claim details.</li><li>Attach the supporting receipt.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
       </div>
       <SubmittedExpenses report={report} onClaim={onClaim} />
     </>}

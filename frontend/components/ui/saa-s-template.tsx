@@ -1,44 +1,48 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCheck, ChevronDown,
+  ArrowDownToLine, ArrowUpRight, Check, CheckCheck, ChevronDown,
   CircleAlert, CircleCheck, FileCheck2, FileText, Info, Layers3, Loader2,
-  Menu, RefreshCw, Search, ShieldCheck, Users, X,
+  Menu, RefreshCw, Search, ShieldCheck, Users, X, LayoutDashboard, ReceiptText, Upload, LogOut, ChevronRight, Building2, Utensils, Plane, BedDouble, Car, ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PolicyLibrary } from "@/components/policy-library";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SourceFiles } from "@/components/source-files";
 import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-view";
 import { ExpenseReview } from "@/components/expense-review";
 import { categoryLabel, dateLabel, money, readReport, reportQuery, apiJson, type DemoUser, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
 
-// Adapted from the supplied SaaS template: fixed dark navigation, gradient hero,
-// soft light effects, responsive menu, and a white gradient primary action.
 function Brand({ onHome }: { onHome: () => void }) {
-  return <a href="#overview" className="brand" aria-label="ExpenseCheck overview" onClick={onHome}>
-    <span className="brand-mark"><CheckCheck size={21} strokeWidth={2.2} /></span>
-    <span>Expense<span className="brand-light">Check</span><span className="brand-dot">.</span></span>
+  return <a href="#main-content" className="brand" aria-label="ExpenseCheck overview" onClick={onHome}>
+    <span className="brand-mark"><CheckCheck size={23} strokeWidth={2.5} /></span>
+    <span>expensecheck<span className="brand-dot">.</span></span>
   </a>;
 }
 
-const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, view, onView, user, onLogout }: {
+const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, user, onLogout }: {
   issueCount: number; openPolicy: () => void; openIssues: () => void;
-  view: "review" | "submit"; onView: (view: "review" | "submit") => void;
   user: DemoUser; onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const initials = user.name.split(" ").map((word) => word[0]).slice(0, 2).join("");
   return <header className="site-header">
     <nav className="header-inner" aria-label="Main navigation">
-      <Brand onHome={() => onView(user.role === "reviewer" ? "review" : "submit")} />
+      <Brand onHome={() => setMobileOpen(false)} />
+      <div className="workspace-switch"><Building2 size={18} /><span>Company workspace<small>Expense management</small></span></div>
       <div className={`navigation-links ${mobileOpen ? "is-open" : ""}`}>
-        {user.role === "reviewer" && <a href="#overview" className={view === "review" ? "nav-active" : ""} onClick={() => { onView("review"); setMobileOpen(false); }}>Reviewer view</a>}
-        <button className={view === "submit" ? "nav-active" : ""} aria-pressed={view === "submit"} onClick={() => { onView("submit"); setMobileOpen(false); }}>User view</button>
-        {user.role === "reviewer" && <a href="#reports" onClick={() => { onView("review"); setMobileOpen(false); }}>Reports</a>}
-        <button onClick={() => { openPolicy(); setMobileOpen(false); }}>Policy <ArrowUpRight size={12} /></button>
-        {user.role === "reviewer" && <button onClick={() => { openIssues(); setMobileOpen(false); }}>Input issues <span className="nav-count">{issueCount}</span></button>}
+        <span className="nav-section-label">Workspace</span>
+        {user.role === "reviewer" && <a href="#overview" className="nav-active" onClick={() => { setMobileOpen(false); }}><LayoutDashboard size={18} />Expense review</a>}
+        {user.role === "employee" && <a href="#submit-expense" className="nav-active" onClick={() => setMobileOpen(false)}><ReceiptText size={18} />My expenses</a>}
+        {user.role === "reviewer" && <a href="#reports" onClick={() => { setMobileOpen(false); }}><FileText size={18} />Reports</a>}
+        <span className="nav-section-label nav-section-secondary">Manage</span>
+        <button onClick={() => { openPolicy(); setMobileOpen(false); }}><ShieldCheck size={18} />Policy</button>
+        {user.role === "reviewer" && <><a href="#source-files" onClick={() => { setMobileOpen(false); }}><Upload size={18} />Import files</a><button onClick={() => { openIssues(); setMobileOpen(false); }}><CircleAlert size={18} />Input issues <span className="nav-count">{issueCount}</span></button></>}
       </div>
-      <div className="workspace-label"><span className="status-dot" /><span className="account-name">{user.name}</span><button onClick={onLogout}>Switch account</button></div>
+      <div className="sidebar-note"><ShieldCheck size={22} /><strong>Your policy. A clearer process.</strong><p>Every flag has a reason. Every decision stays with you.</p><button onClick={openPolicy}>Explore your policy <ChevronRight size={14} /></button></div>
+      <div className="workspace-label"><span className="workspace-avatar">{initials}</span><span className="account-name">{user.name}<small>{user.role === "reviewer" ? "Finance reviewer" : "Employee account"}</small></span><button onClick={onLogout} aria-label="Switch account" title="Switch account"><LogOut size={17} /></button></div>
       <button className="mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"} aria-expanded={mobileOpen}>
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
@@ -50,27 +54,11 @@ function Hero({ report, busy, refresh, review }: { report: Report | null; busy: 
   const overview = report?.overview;
   const percent = overview?.accepted_count ? Math.round(overview.flagged_count / overview.accepted_count * 100) : 0;
   return <section className="hero" id="overview">
-    <div className="hero-glow" aria-hidden="true" />
-    <div className="hero-copy">
-      <div className="eyebrow"><span className="eyebrow-dot" />A LITTLE AUTOMATION. A LOT MORE CLARITY.</div>
-      <h1>A clearer view<br />of every expense<span>.</span></h1>
-      <p>Your policy. Every claim. One place to see<br className="desktop-break" /> what needs a closer look.</p>
-      <div className="hero-actions">
-        <Button className="gradient-button" onClick={review}>Review flagged claims <ArrowRight size={15} /></Button>
-        <Button variant="ghost" className="refresh-button" onClick={refresh} disabled={busy}><RefreshCw size={14} className={busy ? "spin" : ""} /> Refresh report</Button>
-      </div>
-      <div className="hero-footnote"><ShieldCheck size={14} /><span>Powered by your policy. Reviewed by you.</span></div>
-    </div>
-    <div className="snapshot-card">
-      <img src="/office.jpg" className="snapshot-photo" alt="" aria-hidden="true" />
-      <div className="snapshot-shade" />
-      <div className="snapshot-top"><span><Layers3 size={14} /> REVIEW SNAPSHOT</span><span className="snapshot-live"><span className="status-dot" />{report ? "Up to date" : "Connecting"}</span></div>
-      <div className="snapshot-middle"><span className="snapshot-icon"><FileCheck2 size={22} /></span><h2>A faster first pass.<br /><span>A more focused review.</span></h2></div>
-      <div className="snapshot-bottom">
-        <div className="snapshot-stats"><span><strong>{overview?.accepted_count ?? "—"}</strong> claims checked</span><span><strong>{overview?.flagged_count ?? "—"}</strong> need review</span></div>
-        <div className="snapshot-progress" role="img" aria-label={`${percent}% of accepted claims flagged`}><span style={{ width: `${percent}%` }} /></div>
-        <div className="snapshot-legend"><span><i className="legend-purple" />Flagged</span><span><i className="legend-neutral" />Unflagged by active checks</span></div>
-      </div>
+    <div className="hero-heading"><div><h1>Expense review</h1><p>See what needs attention. Make the next decision with confidence.</p></div><Button variant="outline" className="refresh-button" onClick={refresh} disabled={busy}><RefreshCw size={15} className={busy ? "spin" : ""} />Refresh report</Button></div>
+    <div className="review-summary">
+      <div className="review-summary-icon"><ReceiptText size={28} strokeWidth={1.5} /><span><Check size={11} strokeWidth={3} /></span></div>
+      <div className="review-summary-copy"><h2>{overview ? `${overview.flagged_count} claims need a closer look` : "Your review starts here"}</h2><p>{overview ? `${overview.accepted_count} claims checked against your policy. The exceptions are ready for review.` : "Connect your expense records to see policy check results."}</p><button className="summary-action" onClick={review}>Review flagged claims <ChevronRight size={16} /></button></div>
+      <div className="check-breakdown"><span>Policy check results</span><div className="check-track" role="img" aria-label={`${percent}% of accepted claims flagged`}><span style={{width: `${percent}%`}} /></div><div className="check-legend"><span><i />{overview?.flagged_count ?? "—"} flagged</span><span><i />{overview?.unflagged_count ?? "—"} unflagged</span></div></div>
     </div>
   </section>;
 }
@@ -79,13 +67,18 @@ function Metrics({ report }: { report: Report | null }) {
   const overview = report?.overview;
   const cards = [
     { label: "Claims checked", value: overview?.accepted_count ?? "—", detail: overview ? `${overview.unflagged_count} unflagged by active checks` : "Reading expense records", icon: FileText, color: "neutral" },
-    { label: "Need a closer look", value: overview?.flagged_count ?? "—", detail: overview ? `${overview.violation_count} policy flags to review` : "Checking your policy", icon: CircleAlert, color: "purple" },
+    { label: "Flagged claims", value: overview?.flagged_count ?? "—", detail: overview ? `${overview.violation_count} policy flags to review` : "Checking your policy", icon: CircleAlert, color: "blue" },
     { label: "Total flagged amount", value: report ? money(report.overview.total_flagged_amount, report.currency) : "—", detail: "Each claim counted once", icon: Layers3, color: "neutral" },
     { label: "Input issues", value: overview?.rejected_count ?? "—", detail: "Rows to correct before review", icon: FileCheck2, color: "amber" },
   ];
   return <section className="metrics-grid" aria-label="Complete source summary">{cards.map(({ label, value, detail, icon: Icon, color }) =>
     <div className={`metric-card metric-${color}`} key={label}><div className="metric-heading"><span>{label}</span><Icon size={15} /></div><div className="metric-value">{value}</div><div className="metric-detail">{detail}</div></div>,
   )}</section>;
+}
+
+function CategoryIcon({ category }: { category: string }) {
+  const Icon = /meal|food/i.test(category) ? Utensils : /hotel|lodg/i.test(category) ? BedDouble : /flight|air/i.test(category) ? Plane : /taxi|transport|mileage/i.test(category) ? Car : /office|suppl/i.test(category) ? ShoppingBag : ReceiptText;
+  return <Icon size={17} strokeWidth={1.6} />;
 }
 
 function RuleBadge({ name, id }: { name: string; id: string }) {
@@ -105,9 +98,9 @@ function ClaimGroup({ group, grouping, currency, onClaim }: { group: ReportGroup
       <ChevronDown size={15} className={collapsed ? "is-collapsed" : ""} />
     </button>
     {!collapsed && <>
-      <div className="claim-columns"><span>CLAIM DETAILS</span><span>POLICY FLAGS</span><span>AMOUNT</span></div>
+      <div className="claim-columns"><span>Claim details</span><span>Policy flags</span><span>Amount</span></div>
       {claims.map((claim) => <button className="claim-row" key={claim.id} onClick={() => onClaim(claim)} aria-label={`View expense ${claim.id}`}>
-        <span className="claim-identity"><span className="claim-category-icon"><FileText size={15} /></span><span><strong>{categoryLabel(claim.category)}<span className="claim-id">{claim.id}</span></strong><small>{grouping === "rule" ? `${claim.employee} · ` : ""}{dateLabel(claim.date)} · {claim.description}</small></span></span>
+        <span className="claim-identity"><span className="claim-category-icon"><CategoryIcon category={claim.category} /></span><span><strong>{categoryLabel(claim.category)}<span className="claim-id">{claim.id}</span></strong><small>{grouping === "rule" ? `${claim.employee} · ` : ""}{dateLabel(claim.date)} · {claim.description}</small></span></span>
         <span className="claim-badges">{claim.violations.map((violation, i) => <RuleBadge key={`${violation.rule_id}-${i}`} id={violation.rule_id} name={violation.rule_name} />)}</span>
         <span className="claim-amount">{money(claim.amount, currency)}<ArrowUpRight size={13} /></span>
       </button>)}
@@ -121,7 +114,7 @@ function ClaimDetails({ claim, report, close, user, onSaved }: { claim: Claim | 
   // retrieves the full claim so reviewers can inspect every reason together.
   const fullClaim = report?.claims.find((item) => item.id === claim?.id) ?? claim;
   return <Dialog open={!!claim} onOpenChange={(open) => { if (!open) close(); }}><DialogContent className="detail-dialog">
-    <DialogHeader><div className="dialog-eyebrow"><FileText size={15} /> CLAIM DETAILS</div><DialogTitle>{fullClaim?.id}</DialogTitle><DialogDescription>Review the claim, supporting receipt, and policy check results.</DialogDescription></DialogHeader>
+    <DialogHeader><div className="dialog-eyebrow"><FileText size={15} /> Claim details</div><DialogTitle>{fullClaim?.id}</DialogTitle><DialogDescription>Review the claim, supporting receipt, and policy check results.</DialogDescription></DialogHeader>
     {fullClaim && report && <>
       <div className="detail-amount">{money(fullClaim.amount, report.currency)}<Badge className="detail-status" variant="outline">{fullClaim.status === "flagged" ? "Needs review" : "Unflagged by active checks"}</Badge></div>
       <dl className="detail-grid"><div><dt>Employee</dt><dd>{fullClaim.employee}</dd></div><div><dt>Expense date</dt><dd>{fullClaim.date}</dd></div><div><dt>Category</dt><dd>{categoryLabel(fullClaim.category)}</dd></div><div><dt>Receipt attached</dt><dd>{fullClaim.receipt_attached ? "Yes" : "No"}</dd></div></dl>
@@ -137,7 +130,7 @@ function ClaimDetails({ claim, report, close, user, onSaved }: { claim: Claim | 
 
 function PolicyDetails({ open, close, report }: { open: boolean; close: () => void; report: Report | null }) {
   return <Dialog open={open} onOpenChange={(value) => { if (!value) close(); }}><DialogContent className="detail-dialog policy-dialog">
-    <DialogHeader><div className="dialog-eyebrow"><ShieldCheck size={15} /> YOUR ACTIVE POLICY</div><DialogTitle>{report?.policy.name ?? "Expense policy"}</DialogTitle><DialogDescription>Current limits are read from the active policy file.</DialogDescription></DialogHeader>
+    <DialogHeader><div className="dialog-eyebrow"><ShieldCheck size={15} /> Active policy</div><DialogTitle>{report?.policy.name ?? "Expense policy"}</DialogTitle><DialogDescription>Current limits are read from the active policy file.</DialogDescription></DialogHeader>
     {report ? <><div className="policy-version"><span>Version {report.policy.version}</span><span>{report.currency}</span></div>
       <div className="policy-categories">{Object.entries(report.policy.categories).map(([name, settings]) => <div key={name}><strong>{categoryLabel(name)}</strong><span>{settings.max_amount === null ? "No configured limit" : `${money(settings.max_amount, report.currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt always required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</small></span></div>)}</div>
       <div className="active-checks"><span>Active checks</span>{report.policy.active_rules.map((rule) => <Badge key={rule} variant="outline"><Check size={11} />{rule}</Badge>)}</div>
@@ -146,7 +139,7 @@ function PolicyDetails({ open, close, report }: { open: boolean; close: () => vo
 }
 
 export default function Component({ user, onLogout = () => {} }: { user: DemoUser; onLogout?: () => void }) {
-  const [view, setView] = useState<"review" | "submit">(user.role === "reviewer" ? "review" : "submit");
+  const view = user.role === "reviewer" ? "review" : "submit";
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -161,6 +154,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -170,7 +164,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   useEffect(() => {
     if (dataset) localStorage.setItem(`expense-dataset-${user.id}`, dataset);
     else localStorage.removeItem(`expense-dataset-${user.id}`);
-    apiJson<typeof datasets>("/api/datasets").then(setDatasets).catch((problem) => setDatasetsError(problem.message));
+    if (user.role === "reviewer") apiJson<typeof datasets>("/api/datasets").then(setDatasets).catch((problem) => setDatasetsError(problem.message));
   }, [dataset, user.id, user.role]);
 
   useEffect(() => {
@@ -208,9 +202,8 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
 
   const refresh = () => setRefreshCount((value) => value + 1);
   const openIssues = () => {
-    setView("review");
     setIssuesOpen(true);
-    setTimeout(() => issuesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    setTimeout(() => issuesRef.current?.scrollIntoView({ behavior: "auto", block: "start" }), 0);
   };
   async function download() {
     setExporting(true);
@@ -234,24 +227,24 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const groups = report?.groups[grouping] ?? [];
   const pending = loading || uploading || submitting || search !== debouncedSearch;
   return <div className="app-shell">
-    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => setPolicyOpen(true)} openIssues={openIssues} view={view} onView={setView} user={user} onLogout={onLogout} />
-    <main className="dashboard-container">
-      <label className="saved-datasets">Saved datasets<select aria-label="Saved datasets" disabled={pending} value={dataset ?? ""} onChange={(event) => { changeSource(null); setDataset(event.target.value || null); }}><option value="">Company sample</option>{datasets.map((item) => <option key={item.id} value={item.id}>{item.expenses} · {item.policy}</option>)}</select></label>
-      {datasetsError && <p role="alert">Could not load saved datasets: {datasetsError}</p>}
+    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => user.role === "reviewer" ? setLibraryOpen(true) : setPolicyOpen(true)} openIssues={openIssues} user={user} onLogout={onLogout} />
+    <a className="skip-link" href="#main-content">Skip to content</a>
+    <div className="workspace-topbar"><span>Workspace <ChevronRight size={14} /><strong>{view === "review" ? "Expense review" : "My expenses"}</strong></span><ThemeToggle /></div>
+    <main className="dashboard-container" id="main-content">
+      {user.role === "reviewer" && <div className="workspace-controls"><button className="active-policy-button" onClick={() => setLibraryOpen(true)} disabled={pending}><ShieldCheck size={15} /><span>{report?.policy.name ?? "Policies"}</span><ChevronDown size={13} /></button></div>}
       {error && <div className="error-banner" role="alert"><CircleAlert size={18} /><div><strong>We couldn't load your report.</strong><p>{error}</p></div><Button variant="outline" onClick={refresh}>Try again</Button></div>}
-      <div hidden={view !== "submit"}><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} onReview={() => { setView("review"); setTimeout(() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" }), 0); }} /></div>
+      {user.role === "employee" && <div><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} /></div>}
       {user.role === "reviewer" && <div hidden={view !== "review"}>
-      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })} />
-      <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading} />
+      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "auto" })} />
       <Metrics report={error ? null : report} />
       <section className="reports-section" id="reports" aria-busy={pending}>
-        <div className="section-heading"><div><div className="section-eyebrow">THE EXCEPTIONS, IN FOCUS</div><h2>Claims to review <span className="heading-count">{report?.overview.flagged_count ?? "—"}</span></h2><p>A little context makes the next decision clearer.</p></div>
+        <div className="section-heading"><div><h2>Claims to review <span className="heading-count">{report?.overview.flagged_count ?? "—"}</span></h2><p>Review policy exceptions by employee or by the rule they triggered.</p></div>
           <Button variant="outline" className="export-button" disabled={!report || pending || !!error || exporting} onClick={download}>{exporting ? <Loader2 size={14} className="spin" /> : <ArrowDownToLine size={14} />}Export report</Button>
         </div>
         <Tabs className="report-workspace" value={grouping} onValueChange={(value) => setGrouping(value as Grouping)}>
-          <div className="report-toolbar"><TabsList className="grouping-tabs"><TabsTrigger value="employee"><Users size={14} />By employee</TabsTrigger><TabsTrigger value="rule"><ShieldCheck size={14} />By policy rule</TabsTrigger></TabsList><span className="report-currency">{report?.currency ?? "—"}<span className="status-dot" />Live report</span></div>
+          <div className="report-toolbar"><TabsList className="grouping-tabs"><TabsTrigger value="employee"><Users size={14} />By employee</TabsTrigger><TabsTrigger value="rule"><ShieldCheck size={14} />By policy rule</TabsTrigger></TabsList><span className="report-currency">{report?.currency ?? "—"}<span className="status-dot" />Current report</span></div>
           <div className="filter-bar"><label className="search-field"><Search size={16} /><input aria-label="Search claims" disabled={uploading} value={search} maxLength={200} onChange={(event) => setSearch(event.target.value)} placeholder="Search claims, categories, or descriptions…" />{search && <button disabled={uploading} onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}</label><label className="employee-filter"><Users size={14} /><select aria-label="Filter by employee" disabled={uploading} value={employee} onChange={(event) => setEmployee(event.target.value)}><option value="">All employees</option>{report?.employees.map((name) => <option value={name} key={name}>{name}</option>)}</select><ChevronDown size={13} /></label></div>
-          <div className="results-description"><span>{pending ? <><Loader2 size={12} className="spin" />Updating report…</> : report && !error ? <>Showing <strong>{report.summary.flagged_count}</strong> of {report.overview.flagged_count} flagged claims{(employee || debouncedSearch) && <button className="clear-filters" onClick={() => { setEmployee(""); setSearch(""); }}>Clear filters</button>}</> : "Your report will appear here"}</span><span>{grouping === "rule" ? "Claims can appear under multiple rules" : "Full claim amounts · no double counting"}</span></div>
+          <div className="results-description"><span>{pending ? <><Loader2 size={12} className="spin" />Updating report…</> : report && !error ? <>Showing <strong>{report.summary.flagged_count}</strong> of {report.overview.flagged_count} flagged claims{(employee || debouncedSearch) && <button className="clear-filters" onClick={() => { setEmployee(""); setSearch(""); }}>Clear filters</button>}</> : "Your report will appear here"}</span><span>{grouping === "rule" ? "Claims can appear under multiple rules" : "Each flagged claim counted once"}</span></div>
           {exportError && <p className="export-error" role="alert">{exportError}</p>}
           <TabsContent value={grouping}>
           {loading && !report ? <div className="report-skeleton" role="status" aria-label="Loading report">{[0, 1, 2].map((i) => <div key={i} />)}</div> : error ? <div className="empty-state"><CircleAlert size={28} /><h3>Report unavailable</h3><p>Check your data connection and try again.</p></div> : groups.length ? <div className={pending ? "groups-list is-updating" : "groups-list"}>{groups.map((group) => <ClaimGroup key={`${dataset}-${grouping}-${group.id}-${employee}-${debouncedSearch}`} group={group} grouping={grouping} currency={report!.currency} onClaim={setSelectedClaim} />)}</div> : <div className="empty-state"><CircleCheck size={29} /><h3>{employee || debouncedSearch ? "No matching flagged claims" : "No flags from the active checks"}</h3><p>{employee || debouncedSearch ? "Try another employee or search term." : "Continue your manual review for other policy conditions."}</p>{(employee || debouncedSearch) && <Button variant="outline" onClick={() => { setEmployee(""); setSearch(""); }}>Clear filters</Button>}</div>}
@@ -260,6 +253,9 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
         </Tabs>
       </section>
       {!!report?.claims.length && <SubmittedExpenses report={report} all onClaim={setSelectedClaim} />}
+      <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading}>
+        <div className="source-saved-files"><label className="saved-datasets">Previously imported files<select aria-label="Saved datasets" disabled={pending} value={dataset ?? ""} onChange={(event) => { changeSource(null); setDataset(event.target.value || null); }}><option value="">Company sample</option>{datasets.map((item) => <option key={item.id} value={item.id}>{item.expenses} · {item.policy}</option>)}</select></label><p>Reopen an earlier import with its saved policy.</p>{datasetsError && <p role="alert">Could not load saved imports: {datasetsError}</p>}</div>
+      </SourceFiles>
       <section ref={issuesRef} id="input-issues" className="input-issues">
         <button className="issues-heading" onClick={() => setIssuesOpen(!issuesOpen)} aria-expanded={issuesOpen}><span className="issues-icon"><CircleAlert size={19} /></span><span><strong>{report?.errors.length ? "A few records need fixing" : "Input records"} <Badge variant="outline">{report?.errors.length ?? 0}</Badge></strong><small>Rejected rows across the source file. Correct these before policy review.</small></span><span className="issues-toggle">{issuesOpen ? "Hide details" : "View details"}<ChevronDown size={15} className={issuesOpen ? "rotate-180" : ""} /></span></button>
         {issuesOpen && <div className="issues-list">{report?.errors.length ? report.errors.map((issue) => <div className="issue-row" key={issue.line_number}><span className="issue-line">Line {issue.line_number}</span><strong>{issue.expense_id ?? "ID unavailable"}</strong><span>{issue.reasons.join(" · ")}</span></div>) : <div className="no-issues"><Check size={15} />No rejected records in the source file.</div>}</div>}
@@ -268,6 +264,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
       </div>}
     </main>
     <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} user={user} onSaved={(data) => { changeSource(data); setSelectedClaim(data.claims.find((item) => item.id === selectedClaim?.id) ?? null); }} />
+    {user.role === "reviewer" && <PolicyLibrary open={libraryOpen} close={() => setLibraryOpen(false)} report={report} onReport={changeSource} onBusy={setUploading} />}
     <PolicyDetails open={policyOpen} report={report} close={() => setPolicyOpen(false)} />
   </div>;
 }
