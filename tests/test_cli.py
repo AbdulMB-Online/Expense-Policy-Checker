@@ -52,7 +52,7 @@ def test_selected_report_is_displayed_then_menu_returns(monkeypatch, capsys, cho
     captured = capsys.readouterr()
     assert f"Grouped by: {grouping}" in captured.out
     assert heading in captured.out
-    assert "Total flagged amount: USD 2662.10" in captured.out
+    assert "Total flagged amount: USD 14887.09" in captured.out
     assert "REJECTED INPUT ROWS: 28" in captured.out
     assert captured.out.count("EXPENSE POLICY CHECKER") == 2
     assert not captured.err
@@ -142,8 +142,12 @@ def test_project_files_do_not_depend_on_working_directory(tmp_path, monkeypatch,
     enter_choices(monkeypatch, ["1", "3"])
     assert check_expenses.main() == 0
     captured = capsys.readouterr()
+    assert "EXPENSE POLICY REPORT" in captured.out
+    assert "Grouped by: employee" in captured.out
+    assert "Flagged claims: 40" in captured.out
     assert "EMPLOYEE: Anika Rao" in captured.out
-    assert "Total flagged amount: USD 2662.10" in captured.out
+    assert "Total flagged amount: USD 14887.09" in captured.out
+    assert "date: expected a real date in YYYY-MM-DD format" in captured.out
     assert not captured.err
 
 
@@ -164,10 +168,13 @@ def test_complete_command_displays_both_reports_without_changing_data():
     assert result.stdout.count("Enter your choice:") == 3
     assert result.stdout.count("Grouped by: employee") == 1
     assert result.stdout.count("Grouped by: rule") == 1
-    assert result.stdout.count("Total flagged amount: USD 2662.10") == 2
+    assert result.stdout.count("Total flagged amount: USD 14887.09") == 2
+    assert result.stdout.count("Flagged claims: 40") == 2
     assert result.stdout.count("REJECTED INPUT ROWS: 28") == 2
     assert "EMPLOYEE: Karan Mehta" in result.stdout
     assert "RULE: Suspected duplicate" in result.stdout
+    assert "RULE: Submission deadline" in result.stdout
+    assert "date: expected a real date in YYYY-MM-DD format" in result.stdout
     assert result.stdout.endswith("Goodbye.\n")
     assert {path: path.read_bytes() if path.exists() else None for path in protected} == original
 
