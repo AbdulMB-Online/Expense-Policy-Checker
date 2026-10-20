@@ -4,6 +4,12 @@ A command-line project for checking employee expenses against company policy.
 It loads stored expense claims, runs policy checks, and produces violation
 reports grouped by employee or policy rule for finance review.
 
+## Browser dashboard
+
+A React dashboard supports custom CSV/policy JSON uploads, employee/rule views,
+filters, claim details, rejected records, and report downloads. See the
+[dashboard setup guide](frontend/README.md) to install and run it locally.
+
 ## Quick start
 
 Requires Python 3.11+. Run from the repository root:
@@ -120,6 +126,7 @@ exit, file errors, and the complete command using the stored sample.
 ## Continuous integration
 
 GitHub Actions runs pytest on Ubuntu with Python 3.11 for pull requests targeting
-`main` and pushes to `main`. View results and failure logs in the PR checks or
+`main` and pushes to `main`. A separate Node.js 24 job tests the React dashboard
+and type-checks/builds the frontend. View results and failure logs in the PR checks or
 the repository's **Actions** tab. The workflow is defined in
 [tests.yml](.github/workflows/tests.yml).
