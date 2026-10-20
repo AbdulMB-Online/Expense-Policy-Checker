@@ -1,143 +1,47 @@
-"""Run amount, receipt, and duplicate rules against validated expenses.
+"""Run policy rules against validated expenses.
 
 Policy money stays in ``Decimal``. An amount equal to the configured limit
-passes. ``RulesEngine.run_all`` keeps every violation when one expense breaks
-more than one rule.
+passes. When ``reporting.collect_all_violations`` is true, ``RulesEngine.run_all``
+keeps every violation for an expense. Future expense dates are compared with
+each claim's submission date unless a reference date is injected.
 """
 
-from decimal import Decimal
+from datetime import date
 
-from loader.expense_loader import Expense
-
+from .amount_limit import AmountLimitRule
 from .base import PolicyRule, PolicyViolation
+from .categories import (
+    RestrictedCategoryRule,
+    ReviewRequiredRule,
+    UnknownCategoryRule,
+    _known_or_restricted,
+)
+from .dates import FutureExpenseDateRule, SubmissionDeadlineRule
+from .duplicates import DuplicateRule, _same_duplicate_key
+from .helpers import _calendar_day, _category_settings, _decimal_money, _money_text
+from .hotel import MaxHotelStayRule, MissingHotelNightsRule
+from .missing_receipt import MissingReceiptRule
 
-
-class AmountLimitRule(PolicyRule):
-    """Flag an amount that is above the category limit in the policy data.
-
-    ``per_expense`` compares the full amount. ``per_night`` compares the stay
-    total with ``max_amount * nights``. A null maximum means the category has
-    no amount limit. The exact limit passes.
-    """
-
-    rule_id = "amount_limit"
-    rule_name = "Amount limit"
-
-    def evaluate(self, expense, all_expenses: list) -> str | None:
-        settings = self.policy_data.get("categories", {}).get(expense.category)
-        if settings is None:
-            return None
-        maximum = settings.get("max_amount")
-        if maximum is None:
-            return None
-        limit = _decimal_money(maximum)
-        basis = settings.get("limit_basis", "per_expense")
-        if basis == "per_night":
-            return self._per_night(expense, limit)
-        return self._per_expense(expense, limit)
-
-    def _per_expense(self, expense: Expense, limit: Decimal) -> str | None:
-        if expense.amount <= limit:
-            return None
-        return (
-            f"Amount {_money_text(expense.amount)} exceeds the {expense.category} "
-            f"limit of {_money_text(limit)} per expense."
-        )
-
-    def _per_night(self, expense: Expense, limit: Decimal) -> str | None:
-        nights = expense.nights
-        if type(nights) is not int or nights < 1:
-            return None
-        stay_limit = limit * nights
-        if expense.amount <= stay_limit:
-            return None
-        noun = "night" if nights == 1 else "nights"
-        return (
-            f"Amount {_money_text(expense.amount)} exceeds the {expense.category} "
-            f"limit of {_money_text(limit)} per night for {nights} {noun}."
-        )
-
-
-class MissingReceiptRule(PolicyRule):
-    """Flag a missing receipt using the category receipt settings.
-
-    ``above_threshold`` requires a receipt only when the amount is strictly
-    above the policy threshold. An amount equal to the threshold passes.
-    ``always`` requires a receipt at any amount. ``unconfigured`` does not
-    flag a missing receipt.
-    """
-
-    rule_id = "missing_receipt"
-    rule_name = "Missing receipt"
-
-    def evaluate(self, expense, all_expenses: list) -> str | None:
-        settings = self.policy_data.get("categories", {}).get(expense.category)
-        if settings is None or expense.receipt_attached:
-            return None
-        receipt = settings.get("receipt", {})
-        mode = receipt.get("mode", "unconfigured")
-        if mode == "unconfigured":
-            return None
-        if mode == "always":
-            return f"Receipt is missing for {expense.category} expense {_money_text(expense.amount)}."
-        if mode != "above_threshold":
-            return None
-        threshold = _decimal_money(receipt["threshold"])
-        if expense.amount <= threshold:
-            return None
-        return (
-            f"Receipt is missing for {expense.category} expense {_money_text(expense.amount)}, "
-            f"which is above the {_money_text(threshold)} threshold."
-        )
-
-
-class DuplicateRule(PolicyRule):
-    """Flag another expense that matches ``duplicates.key_fields``.
-
-    The default key is employee, date, amount, and category. A field such as
-    ``nights`` is compared only when the policy lists it. ``duplicates.flag``
-    chooses ``all_matches`` or ``later_matches``. ``duplicates.require_different_ids``
-    controls whether the same id can match.
-    """
-
-    rule_id = "suspected_duplicate"
-    rule_name = "Suspected duplicate"
-
-    def evaluate(self, expense, all_expenses: list) -> str | None:
-        settings = self.policy_data.get("duplicates", {})
-        key_fields = self._key_fields()
-        matches = [
-            other
-            for other in all_expenses
-            if other is not expense and _same_duplicate_key(expense, other, key_fields)
-        ]
-        if settings.get("require_different_ids", True):
-            matches = [other for other in matches if other.id != expense.id]
-        if not matches:
-            return None
-        if settings.get("flag", "all_matches") == "later_matches":
-            first = next(
-                item for item in all_expenses if _same_duplicate_key(expense, item, key_fields)
-            )
-            if first is expense:
-                return None
-        other_ids = ", ".join(other.id for other in matches)
-        return f"Duplicate of {other_ids} on {', '.join(key_fields)}."
-
-    def _key_fields(self) -> list:
-        return self.policy_data.get("duplicates", {}).get(
-            "key_fields", ["employee", "date", "amount", "category"]
-        )
+# PolicyRule and the private helpers remain importable from this module.
 
 
 class RulesEngine:
-    """Apply every rule and collect every violation by expense id."""
+    """Apply every rule and collect violations by expense id."""
 
-    def __init__(self, policy_data: dict):
+    def __init__(self, policy_data: dict, *, reference_date: date | None = None):
+        self.policy_data = policy_data
+        self.reference_date = reference_date
         self.rules = [
             AmountLimitRule(policy_data),
             MissingReceiptRule(policy_data),
             DuplicateRule(policy_data),
+            RestrictedCategoryRule(policy_data),
+            UnknownCategoryRule(policy_data),
+            SubmissionDeadlineRule(policy_data),
+            FutureExpenseDateRule(policy_data, reference_date=reference_date),
+            MissingHotelNightsRule(policy_data),
+            MaxHotelStayRule(policy_data),
+            ReviewRequiredRule(policy_data),
         ]
 
     def run_all(self, expenses) -> dict[str, list[str]]:
@@ -158,8 +62,14 @@ class RulesEngine:
         Like ``run_all``, omit clean expenses and preserve expense/rule order.
         Each rule is evaluated once per expense. New rules can supply stable
         ``rule_id`` and ``rule_name`` attributes; class names are the fallback.
+        ``reporting.collect_all_violations`` false keeps the first violation
+        in rule order. A missing flag still collects every violation.
         """
         expense_list = list(expenses)
+        reporting = self.policy_data.get("reporting") if isinstance(self.policy_data, dict) else None
+        collect_all = not (
+            isinstance(reporting, dict) and reporting.get("collect_all_violations") is False
+        )
         violations: dict[str, list[PolicyViolation]] = {}
         for expense in expense_list:
             messages = []
@@ -171,21 +81,8 @@ class RulesEngine:
                         rule_name=getattr(rule, "rule_name", type(rule).__name__),
                         reason=message,
                     ))
+                    if not collect_all:
+                        break
             if messages:
                 violations.setdefault(expense.id, []).extend(messages)
         return violations
-
-
-def _same_duplicate_key(left: Expense, right: Expense, key_fields: list) -> bool:
-    return all(getattr(left, field) == getattr(right, field) for field in key_fields)
-
-
-def _decimal_money(value: str) -> Decimal:
-    """Convert a policy money string. Float values are rejected."""
-    if not isinstance(value, str):
-        raise ValueError("policy money values must stay decimal strings until evaluation")
-    return Decimal(value)
-
-
-def _money_text(value: Decimal) -> str:
-    return f"{value.quantize(Decimal('0.01'))}"

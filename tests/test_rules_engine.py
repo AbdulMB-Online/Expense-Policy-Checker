@@ -4,7 +4,7 @@ An amount equal to the policy limit passes. When one expense breaks two
 rules, ``RulesEngine.run_all`` keeps both violation messages.
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,7 +13,20 @@ import pytest
 from loader.expense_loader import Expense, load_expenses
 from loader.policy_loader import load_policy
 from rules.base import PolicyRule, PolicyViolation
-from rules.engine import AmountLimitRule, DuplicateRule, MissingReceiptRule, RulesEngine
+from rules.engine import (
+    AmountLimitRule,
+    DuplicateRule,
+    FutureExpenseDateRule,
+    MaxHotelStayRule,
+    MissingHotelNightsRule,
+    MissingReceiptRule,
+    RestrictedCategoryRule,
+    ReviewRequiredRule,
+    RulesEngine,
+    SubmissionDeadlineRule,
+    UnknownCategoryRule,
+)
+from scripts.generate_example_policy import generate_policy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -333,15 +346,35 @@ def test_checked_in_sample_collects_amount_receipt_and_duplicate_violations():
     assert violations["EXP-014"] == [
         "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
         "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold.",
+        "Submitted 31 days after the expense date, beyond the 30-day deadline.",
     ]
     assert violations["EXP-016"] == ["Amount 402.00 exceeds the hotel limit of 200.00 per night for 2 nights."]
     assert violations["EXP-017"] == ["Receipt is missing for hotel expense 20.00."]
+    assert "EXP-011" not in violations
+    assert "EXP-044" not in violations
+    assert "EXP-048" not in violations
+    assert "EXP-056" not in violations
+    assert violations["EXP-012"] == [
+        "Submitted 31 days after the expense date, beyond the 30-day deadline."
+    ]
+    assert violations["EXP-013"] == ["Category alcohol is restricted."]
+    assert violations["EXP-022"] == ["Category other requires review."]
+    assert violations["EXP-047"] == ["Nights are required for hotel but none were provided."]
+    assert violations["EXP-058"] == [
+        "Expense date 2026-11-05 is after the submission date 2026-10-05."
+    ]
+    assert violations["EXP-062"] == [
+        "Category training is unknown.",
+        "Category training requires review.",
+    ]
+    assert violations["EXP-065"] == ["Category alcohol is restricted."]
     assert set(violations) == {
         "EXP-003", "EXP-004", "EXP-005", "EXP-006", "EXP-007",
-        "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
-        "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
-        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046",
+        "EXP-012", "EXP-013", "EXP-014", "EXP-016", "EXP-017", "EXP-019", "EXP-021",
+        "EXP-022", "EXP-025", "EXP-027", "EXP-028", "EXP-031", "EXP-033", "EXP-034",
+        "EXP-037", "EXP-039", "EXP-040", "EXP-043", "EXP-045", "EXP-046", "EXP-047",
         "EXP-049", "EXP-050", "EXP-051", "EXP-052", "EXP-053", "EXP-054", "EXP-055",
+        "EXP-057", "EXP-058", "EXP-061", "EXP-062", "EXP-063", "EXP-064", "EXP-065",
     }
 
 
@@ -383,4 +416,355 @@ def test_detailed_results_support_new_rules_without_message_classification():
             PolicyViolation("CustomRule", "CustomRule", "A custom review reason."),
             PolicyViolation("named_check", "Named check", "A custom review reason."),
         ],
+    }
+
+
+def test_existing_amount_receipt_and_duplicate_messages_stay_in_the_full_engine():
+    over_limit = make_expense(id="E-5", amount=Decimal("75.00"), receipt_attached=False)
+    duplicates = [
+        make_expense(id="E-6", employee="Jordan", category="transport", amount=Decimal("40.00")),
+        make_expense(id="E-7", employee="Jordan", category="transport", amount=Decimal("40.00")),
+    ]
+    engine = RulesEngine(make_policy())
+    assert engine.run_all([over_limit]) == {
+        "E-5": [
+            "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
+            "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold.",
+        ],
+    }
+    assert engine.run_all(duplicates) == {
+        "E-6": ["Duplicate of E-7 on employee, date, category, amount, nights."],
+        "E-7": ["Duplicate of E-6 on employee, date, category, amount, nights."],
+    }
+    detailed = engine.run_detailed([over_limit])
+    assert engine.run_all([over_limit]) == {
+        expense_id: [item.reason for item in items] for expense_id, items in detailed.items()
+    }
+
+
+def test_engine_duplicate_matching_still_uses_configured_nights():
+    same_stay = [
+        make_expense(id="H-1", category="hotel", amount=Decimal("40.00"), nights=2),
+        make_expense(id="H-2", category="hotel", amount=Decimal("40.00"), nights=2),
+    ]
+    different_stay = [
+        same_stay[0],
+        make_expense(id="H-3", category="hotel", amount=Decimal("40.00"), nights=3),
+    ]
+    policy = make_policy()
+    assert RulesEngine(policy).run_all(same_stay)["H-1"] == [
+        "Duplicate of H-2 on employee, date, category, amount, nights."
+    ]
+    assert RulesEngine(policy).run_all(different_stay) == {}
+    policy["duplicates"]["key_fields"] = ["employee", "date", "amount", "category"]
+    assert RulesEngine(policy).run_all(different_stay)["H-1"] == [
+        "Duplicate of H-3 on employee, date, amount, category."
+    ]
+
+
+# Restricted, unknown, and review-required categories
+
+
+def test_restricted_allowed_and_unknown_categories_are_distinct():
+    policy = make_policy()
+    restricted = RestrictedCategoryRule(policy)
+    unknown = UnknownCategoryRule(policy)
+    alcohol = make_expense(category="alcohol", amount=Decimal("15.00"))
+    meals = make_expense(id="E-2")
+    training = make_expense(id="E-3", category="training")
+    assert restricted.evaluate(alcohol, [alcohol]) == "Category alcohol is restricted."
+    assert unknown.evaluate(alcohol, [alcohol]) is None
+    assert restricted.evaluate(meals, [meals]) is None
+    assert unknown.evaluate(meals, [meals]) is None
+    assert restricted.evaluate(training, [training]) is None
+    assert unknown.evaluate(training, [training]) == "Category training is unknown."
+
+
+def test_restricted_category_is_not_classified_as_unknown_or_review_required():
+    alcohol = make_expense(category="alcohol", amount=Decimal("15.00"), receipt_attached=False)
+    violations = RulesEngine(make_policy()).run_detailed([alcohol])["E-1"]
+    assert violations == [
+        PolicyViolation("restricted_category", "Restricted category", "Category alcohol is restricted."),
+    ]
+
+
+def test_unknown_category_action_controls_unknown_and_review_classification():
+    training = make_expense(category="training", amount=Decimal("80.00"), receipt_attached=False)
+    violations = RulesEngine(make_policy()).run_detailed([training])["E-1"]
+    assert [item.rule_id for item in violations] == ["unknown_category", "review_required"]
+    assert [item.reason for item in violations] == [
+        "Category training is unknown.",
+        "Category training requires review.",
+    ]
+    configured = make_policy()
+    configured["unknown_category_action"] = "allow"
+    assert RulesEngine(configured).run_all([training]) == {}
+
+
+def test_review_required_follows_the_category_flag_only():
+    other = make_expense(category="other", amount=Decimal("500.00"), receipt_attached=False)
+    zero = make_expense(id="E-0", category="other", amount=Decimal("0.00"))
+    meals = make_expense(id="E-2", amount=Decimal("75.00"), receipt_attached=False)
+    engine = RulesEngine(make_policy())
+    assert engine.run_detailed([other])["E-1"] == [
+        PolicyViolation("review_required", "Review required", "Category other requires review."),
+    ]
+    assert engine.run_all([zero]) == {"E-0": ["Category other requires review."]}
+    assert [item.rule_id for item in engine.run_detailed([meals])["E-2"]] == [
+        "amount_limit", "missing_receipt",
+    ]
+    configured = make_policy()
+    configured["categories"]["other"]["review_required"] = False
+    assert ReviewRequiredRule(configured).evaluate(other, [other]) is None
+
+
+def test_restricted_known_category_still_checks_its_amount_limit():
+    configured = make_policy()
+    configured["restricted_categories"] = ["meals"]
+    expense = make_expense(amount=Decimal("75.00"))
+    assert [item.rule_id for item in RulesEngine(configured).run_detailed([expense])["E-1"]] == [
+        "amount_limit", "restricted_category",
+    ]
+
+
+# Submission deadline and future dates
+
+
+def test_submission_deadline_accepts_day_29_and_inclusive_day_30():
+    rule = SubmissionDeadlineRule(make_policy())
+    day_29 = make_expense(date=date(2026, 9, 6), submission_date=date(2026, 10, 5))
+    day_30 = make_expense(id="E-30", date=date(2026, 9, 5), submission_date=date(2026, 10, 5))
+    day_31 = make_expense(id="E-31", date=date(2026, 9, 4), submission_date=date(2026, 10, 5))
+    assert rule.evaluate(day_29, [day_29]) is None
+    assert rule.evaluate(day_30, [day_30]) is None
+    assert rule.evaluate(day_31, [day_31]) == (
+        "Submitted 31 days after the expense date, beyond the 30-day deadline."
+    )
+
+
+def test_exclusive_deadline_rejects_the_exact_limit():
+    configured = make_policy()
+    configured["submission"]["inclusive"] = False
+    rule = SubmissionDeadlineRule(configured)
+    day_29 = make_expense(date=date(2026, 9, 6), submission_date=date(2026, 10, 5))
+    day_30 = make_expense(id="E-30", date=date(2026, 9, 5), submission_date=date(2026, 10, 5))
+    assert rule.evaluate(day_29, [day_29]) is None
+    assert rule.evaluate(day_30, [day_30]) == (
+        "Submitted 30 days after the expense date, beyond the 30-day deadline."
+    )
+
+
+def test_deadline_uses_calendar_days_across_leap_day_and_month_end():
+    rule = SubmissionDeadlineRule(make_policy())
+    leap = make_expense(date=date(2024, 2, 29), submission_date=date(2024, 3, 30))
+    year_end = make_expense(id="E-2", date=date(2025, 12, 31), submission_date=date(2026, 1, 30))
+    month_end = make_expense(id="E-3", date=date(2026, 1, 31), submission_date=date(2026, 3, 3))
+    assert rule.evaluate(leap, [leap]) is None
+    assert rule.evaluate(year_end, [year_end]) is None
+    assert rule.evaluate(month_end, [month_end]) == (
+        "Submitted 31 days after the expense date, beyond the 30-day deadline."
+    )
+
+
+@pytest.mark.parametrize("expense_date, submitted", [
+    (None, date(2026, 10, 5)),
+    (date(2026, 10, 5), None),
+    ("2026-09-04", date(2026, 10, 5)),
+    (datetime(2026, 9, 4), date(2026, 10, 5)),
+    (date(2026, 9, 4), "2026-10-05"),
+])
+def test_deadline_and_future_checks_ignore_missing_or_invalid_dates(expense_date, submitted):
+    expense = make_expense(date=expense_date, submission_date=submitted)
+    assert SubmissionDeadlineRule(make_policy()).evaluate(expense, [expense]) is None
+    assert FutureExpenseDateRule(make_policy()).evaluate(expense, [expense]) is None
+
+
+def test_future_expense_dates_use_the_submission_date():
+    rule = FutureExpenseDateRule(make_policy())
+    past = make_expense(date=date(2020, 1, 1), submission_date=date(2020, 1, 2))
+    same_day = make_expense(id="E-2", date=date(2020, 1, 2), submission_date=date(2020, 1, 2))
+    future = make_expense(id="E-3", date=date(2020, 1, 3), submission_date=date(2020, 1, 2))
+    assert rule.evaluate(past, [past]) is None
+    assert rule.evaluate(same_day, [same_day]) is None
+    assert rule.evaluate(future, [future]) == (
+        "Expense date 2020-01-03 is after the submission date 2020-01-02."
+    )
+
+
+def test_future_expense_is_not_also_a_late_submission():
+    expense = make_expense(date=date(2026, 11, 5), submission_date=date(2026, 10, 5))
+    assert [item.rule_id for item in RulesEngine(make_policy()).run_detailed([expense])["E-1"]] == [
+        "future_expense_date",
+    ]
+
+
+def test_injected_reference_date_replaces_the_submission_date():
+    reference = date(2020, 1, 1)
+    rule = FutureExpenseDateRule(make_policy(), reference_date=reference)
+    before_reference = make_expense(date=date(2019, 12, 31), submission_date=date(2019, 1, 1))
+    on_reference = make_expense(id="E-2", date=reference, submission_date=date(1999, 1, 1))
+    after_reference = make_expense(id="E-3", date=date(2020, 1, 2), submission_date=date(2020, 1, 2))
+    assert rule.evaluate(before_reference, [before_reference]) is None
+    assert rule.evaluate(on_reference, [on_reference]) is None
+    assert rule.evaluate(after_reference, [after_reference]) == (
+        "Expense date 2020-01-02 is after the reference date 2020-01-01."
+    )
+    engine = RulesEngine(make_policy(), reference_date=reference)
+    assert engine.run_all([before_reference]) == {}
+    assert "reference date" in engine.run_all([after_reference])["E-3"][0]
+
+
+def test_invalid_injected_reference_date_does_not_crash():
+    expense = make_expense(date=date(2026, 10, 6), submission_date=date(2026, 10, 5))
+    rule = FutureExpenseDateRule(make_policy(), reference_date="today")
+    assert rule.evaluate(expense, [expense]) is None
+
+
+# Hotel nights
+
+
+@pytest.mark.parametrize("nights, expected", [
+    (None, "Nights are required for hotel but none were provided."),
+    (0, "Nights for hotel must be a positive integer."),
+    (-1, "Nights for hotel must be a positive integer."),
+    (True, "Nights for hotel must be a positive integer."),
+    (False, "Nights for hotel must be a positive integer."),
+    (1.5, "Nights for hotel must be a positive integer."),
+    ("2", "Nights for hotel must be a positive integer."),
+])
+def test_required_hotel_nights_reject_missing_and_invalid_values(nights, expected):
+    expense = make_expense(category="hotel", amount=Decimal("300.00"), nights=nights)
+    assert MissingHotelNightsRule(make_policy()).evaluate(expense, [expense]) == expected
+
+
+def test_valid_hotel_nights_and_unrequired_categories_pass():
+    policy = make_policy()
+    valid = make_expense(category="hotel", amount=Decimal("20.00"), nights=1)
+    assert MissingHotelNightsRule(policy).evaluate(valid, [valid]) is None
+    meals = make_expense(id="E-2", nights=None)
+    invalid_meals = make_expense(id="E-3", nights=0)
+    assert MissingHotelNightsRule(policy).evaluate(meals, [meals]) is None
+    assert MissingHotelNightsRule(policy).evaluate(invalid_meals, [invalid_meals]) is None
+    policy["categories"]["hotel"]["nights_required"] = False
+    missing = make_expense(category="hotel", amount=Decimal("20.00"), nights=None)
+    assert MissingHotelNightsRule(policy).evaluate(missing, [missing]) is None
+
+
+def test_maximum_stay_checks_below_at_and_above_the_limit():
+    configured = make_policy()
+    configured["categories"]["hotel"]["max_nights_per_stay"] = 7
+    rule = MaxHotelStayRule(configured)
+    below = make_expense(category="hotel", amount=Decimal("10.00"), nights=6)
+    at_limit = make_expense(id="E-2", category="hotel", amount=Decimal("10.00"), nights=7)
+    above = make_expense(id="E-3", category="hotel", amount=Decimal("10.00"), nights=8)
+    assert rule.evaluate(below, [below]) is None
+    assert rule.evaluate(at_limit, [at_limit]) is None
+    assert rule.evaluate(above, [above]) == (
+        "Stay of 8 nights exceeds the hotel maximum of 7 nights."
+    )
+
+
+def test_null_or_missing_maximum_stay_is_not_invented():
+    long_stay = make_expense(category="hotel", amount=Decimal("10.00"), nights=100)
+    assert MaxHotelStayRule(make_policy()).evaluate(long_stay, [long_stay]) is None
+    configured = make_policy()
+    del configured["categories"]["hotel"]["max_nights_per_stay"]
+    assert MaxHotelStayRule(configured).evaluate(long_stay, [long_stay]) is None
+
+
+@pytest.mark.parametrize("nights", [None, 0, -3, "8", True, 1.5])
+def test_maximum_stay_ignores_missing_and_invalid_nights(nights):
+    configured = make_policy()
+    configured["categories"]["hotel"]["max_nights_per_stay"] = 7
+    expense = make_expense(category="hotel", amount=Decimal("10.00"), nights=nights)
+    assert MaxHotelStayRule(configured).evaluate(expense, [expense]) is None
+
+
+def test_sample_hotel_stay_respects_null_and_configured_maximums(tmp_path):
+    loaded = load_expenses(ROOT / "data" / "expenses" / "sample_expenses.csv")
+    standard = RulesEngine(load_policy(ROOT / "data" / "policy" / "policy.json"))
+    assert "EXP-044" not in standard.run_all(loaded.expenses)
+    assert "EXP-048" not in standard.run_all(loaded.expenses)
+    travel = load_policy(generate_policy(tmp_path / "business_travel.json"))
+    assert RulesEngine(travel).run_detailed(loaded.expenses)["EXP-048"] == [
+        PolicyViolation(
+            "max_hotel_stay",
+            "Maximum hotel stay",
+            "Stay of 8 nights exceeds the hotel maximum of 7 nights.",
+        ),
+    ]
+    assert "EXP-044" not in RulesEngine(travel).run_all(loaded.expenses)
+
+
+# Several rules on one expense, ordering, and empty input
+
+
+def test_one_expense_keeps_every_applicable_violation_in_rule_order():
+    configured = make_policy()
+    configured["categories"]["meals"]["review_required"] = True
+    expense = make_expense(
+        amount=Decimal("75.00"),
+        receipt_attached=False,
+        date=date(2026, 9, 4),
+        submission_date=date(2026, 10, 5),
+    )
+    violations = RulesEngine(configured).run_detailed([expense])["E-1"]
+    assert [item.rule_id for item in violations] == [
+        "amount_limit", "missing_receipt", "submission_deadline", "review_required",
+    ]
+    hotel_policy = make_policy()
+    hotel_policy["categories"]["hotel"]["max_nights_per_stay"] = 2
+    hotel = make_expense(
+        id="H-1", category="hotel", amount=Decimal("1000.00"), nights=3, receipt_attached=False,
+    )
+    assert [item.rule_id for item in RulesEngine(hotel_policy).run_detailed([hotel])["H-1"]] == [
+        "amount_limit", "missing_receipt", "max_hotel_stay",
+    ]
+
+
+def test_collect_all_false_keeps_only_the_first_violation():
+    configured = make_policy()
+    configured["reporting"]["collect_all_violations"] = False
+    expense = make_expense(
+        amount=Decimal("75.00"),
+        receipt_attached=False,
+        date=date(2026, 9, 4),
+        submission_date=date(2026, 10, 5),
+    )
+    assert RulesEngine(configured).run_all([expense]) == {
+        "E-1": ["Amount 75.00 exceeds the meals limit of 50.00 per expense."],
+    }
+
+
+def test_missing_collect_all_flag_still_keeps_every_violation():
+    configured = make_policy()
+    del configured["reporting"]
+    expense = make_expense(amount=Decimal("75.00"), receipt_attached=False)
+    assert RulesEngine(configured).run_all([expense])["E-1"] == [
+        "Amount 75.00 exceeds the meals limit of 50.00 per expense.",
+        "Receipt is missing for meals expense 75.00, which is above the 25.00 threshold.",
+    ]
+
+
+def test_empty_input_and_clean_expenses_produce_no_results():
+    engine = RulesEngine(make_policy())
+    assert engine.run_all([]) == {}
+    assert engine.run_detailed([]) == {}
+    assert engine.run_all([make_expense()]) == {}
+    assert engine.run_detailed([make_expense(amount=Decimal("50.00"))]) == {}
+
+
+def test_results_keep_expense_order_and_both_result_formats_match():
+    expenses = [
+        make_expense(id="CLEAN"),
+        make_expense(id="LATE", date=date(2026, 9, 4), submission_date=date(2026, 10, 5)),
+        make_expense(id="ALCOHOL", category="alcohol", amount=Decimal("15.00")),
+        make_expense(id="OVER", amount=Decimal("75.00"), receipt_attached=False),
+    ]
+    engine = RulesEngine(make_policy())
+    detailed = engine.run_detailed(iter(expenses))
+    assert list(detailed) == ["LATE", "ALCOHOL", "OVER"]
+    assert [item.rule_id for item in detailed["OVER"]] == ["amount_limit", "missing_receipt"]
+    assert engine.run_all(expenses) == {
+        expense_id: [item.reason for item in items] for expense_id, items in detailed.items()
     }

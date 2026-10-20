@@ -138,7 +138,7 @@ function PolicyDetails({ open, close, report }: { open: boolean; close: () => vo
     {report ? <><div className="policy-version"><span>Version {report.policy.version}</span><span>{report.currency}</span></div>
       <div className="policy-categories">{Object.entries(report.policy.categories).map(([name, settings]) => <div key={name}><strong>{categoryLabel(name)}</strong><span>{settings.max_amount === null ? "No configured limit" : `${money(settings.max_amount, report.currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt always required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</small></span></div>)}</div>
       <div className="active-checks"><span>Active checks</span>{report.policy.active_rules.map((rule) => <Badge key={rule} variant="outline"><Check size={11} />{rule}</Badge>)}</div>
-      <p className="review-guidance"><Info size={14} />Submission deadlines, restrictions, and other policy conditions still require manual review.</p></> : <p>Load a report to view its policy.</p>}
+      <p className="review-guidance"><Info size={14} />Automated checks are a first pass. Verify supporting information before approving a claim.</p></> : <p>Load a report to view its policy.</p>}
   </DialogContent></Dialog>;
 }
 

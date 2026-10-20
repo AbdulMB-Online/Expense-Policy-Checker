@@ -1,7 +1,7 @@
 """Exercise form -> validation -> durable receipt/claim -> real policy report."""
 
 import asyncio
-from datetime import date
+from datetime import date, timedelta
 import json
 from pathlib import Path
 import shutil
@@ -31,7 +31,7 @@ def request(app, method, url, **kwargs):
 
 
 def form(**changes):
-    return {"employee": "Submission Tester", "date": "2026-10-15", "category": "meals", "amount": "20.00", "description": "Client meeting lunch", "request_id": str(uuid4()), **changes}
+    return {"employee": "Submission Tester", "date": date.today().isoformat(), "category": "meals", "amount": "20.00", "description": "Client meeting lunch", "request_id": str(uuid4()), **changes}
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_clean_submission_persists_with_receipt_after_restart_and_preserves_csv(
     assert claim["receipt_attached"] is True
     assert claim["origin"] == "submission"
     assert data["report"]["overview"]["accepted_count"] == 73
-    assert data["report"]["overview"]["flagged_count"] == 29
+    assert data["report"]["overview"]["flagged_count"] == 40
     assert data["report"]["submissions"] == [claim]
     restarted = create_app(project)
     assert report(restarted)["submissions"] == [claim]
@@ -94,8 +94,8 @@ def test_flagged_submission_saves_all_reasons_and_joins_both_report_groups(proje
     assert {flag["rule_id"] for flag in claim["violations"]} == {"amount_limit", "missing_receipt"}
     assert claim["receipt"] is None and not claim["receipt_attached"]
     assert data["report"]["overview"] == {
-        "accepted_count": 73, "unflagged_count": 43, "flagged_count": 30,
-        "violation_count": 46, "rejected_count": 28, "total_flagged_amount": "2737.10",
+        "accepted_count": 73, "unflagged_count": 32, "flagged_count": 41,
+        "violation_count": 60, "rejected_count": 28, "total_flagged_amount": "14962.09",
     }
     for grouping in ("employee", "rule"):
         groups = data["report"]["groups"][grouping]
@@ -127,7 +127,7 @@ def test_new_claim_rechecks_existing_csv_claims_for_duplicates(project):
     assert result.status_code == 201
     data = result.json()
     new = data["claim"]
-    assert [flag["rule_id"] for flag in new["violations"]] == ["suspected_duplicate"]
+    assert "suspected_duplicate" in {flag["rule_id"] for flag in new["violations"]}
     old = next(claim for claim in data["report"]["claims"] if claim["id"] == "EXP-001")
     assert new["id"] in old["violations"][0]["reason"]
     filtered = request(app, "GET", f'/api/report?search={new["id"]}').json()
@@ -265,3 +265,29 @@ def test_storage_failure_has_retry_message_without_claim(project, monkeypatch):
     assert result.status_code == 503
     assert "retry" in result.json()["detail"]
     assert report(app)["submissions"] == []
+
+
+@pytest.mark.parametrize("days, category, expected_rule", [
+    (-31, "meals", "submission_deadline"),
+    (1, "meals", "future_expense_date"),
+    (0, "other", "review_required"),
+])
+def test_additional_main_rules_flag_and_save_form_submissions(project, days, category, expected_rule):
+    app = create_app(project)
+    expense_day = (date.today() + timedelta(days=days)).isoformat()
+    result = submit(app, form(date=expense_day, category=category), ("Receipt.pdf", PDF))
+    assert result.status_code == 201
+    claim = result.json()["claim"]
+    assert {violation["rule_id"] for violation in claim["violations"]} == {expected_rule}
+    assert report(app)["submissions"][0]["id"] == claim["id"]
+    assert any(group["id"] == expected_rule for group in result.json()["report"]["groups"]["rule"])
+
+
+def test_custom_hotel_stay_limit_from_main_flags_submitted_claim(project):
+    app = create_app(project)
+    settings = json.loads((project / "data/policy/policy.json").read_text())
+    settings["categories"]["hotel"]["max_nights_per_stay"] = 1
+    uploaded = policy_upload(app, project, categories=settings["categories"])
+    result = submit(app, form(dataset=uploaded["dataset_id"], category="hotel", amount="400.00", nights="2"), ("Stay.pdf", PDF))
+    assert result.status_code == 201
+    assert {flag["rule_id"] for flag in result.json()["claim"]["violations"]} == {"max_hotel_stay"}

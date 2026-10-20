@@ -88,9 +88,9 @@ exceeds it. The standard policy leaves stay length uncapped. See the
 
 
 Results include every detected violation and a `PASS` or `FLAGGED` status.
-Checks cover amounts, receipts, and suspected duplicates. Submission deadlines,
-restricted and unknown categories, future dates, missing hotel nights, stay lengths,
-and review-required classifications still require manual review. Invalid supplied
+Checks cover amounts, receipts, duplicates, submission deadlines, future dates,
+category restrictions and review requirements, hotel nights, and stay lengths.
+Flags still require finance review. Invalid supplied
 night counts are rejected by the loader before policy evaluation.
 
 - `build_report(...)` creates an immutable report with summary counts and the

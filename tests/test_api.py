@@ -52,30 +52,38 @@ def test_real_pipeline_summary_and_rule_identities(project):
     assert result.status_code == 200
     data = result.json()
     assert data["overview"] == {
-        "accepted_count": 72, "unflagged_count": 43, "flagged_count": 29,
-        "violation_count": 44, "rejected_count": 28, "total_flagged_amount": "2662.10",
+        "accepted_count": 72, "unflagged_count": 32, "flagged_count": 40,
+        "violation_count": 58, "rejected_count": 28, "total_flagged_amount": "14887.09",
     }
     assert data["summary"] == data["overview"]
     assert len(data["claims"]) == 72
     assert [(group["name"], group["total_amount"]) for group in data["groups"]["employee"]] == [
-        ("Anika Rao", "837.03"), ("Elena Brooks", "60.00"),
-        ("Karan Mehta", "80.00"), ("Kavya Iyer", "800.02"),
-        ("Lucía Torres", "175.02"), ("Mei Tan", "225.02"),
+        ("Amina Rahman", "60.00"), ("Anika Rao", "1372.03"),
+        ("Elena Brooks", "60.00"), ("Karan Mehta", "80.00"),
+        ("Kavya Iyer", "1100.02"), ("Lucía Torres", "175.02"),
+        ("Mei Tan", "225.02"), ("Rafael Costa", "11329.99"),
         ("Rohan Desai", "125.02"), ("Yusuf Khan", "359.99"),
     ]
     assert [(group["id"], len(group["claims"])) for group in data["groups"]["rule"]] == [
-        ("amount_limit", 17), ("missing_receipt", 22), ("suspected_duplicate", 5),
+        ("amount_limit", 17), ("future_expense_date", 1), ("missing_hotel_nights", 1),
+        ("missing_receipt", 22), ("restricted_category", 2), ("review_required", 4),
+        ("submission_deadline", 4), ("suspected_duplicate", 5), ("unknown_category", 2),
     ]
     multiple = next(claim for claim in data["claims"] if claim["id"] == "EXP-005")
     assert {item["rule_id"] for item in multiple["violations"]} == {"amount_limit", "missing_receipt"}
     assert data["errors"][0]["line_number"] == 12
     assert data["errors"][0]["expense_id"] == "BAD-001"
+    invalid_date = next(error for error in data["errors"] if error["expense_id"] == "BAD-003")
+    assert "date: expected a real date in YYYY-MM-DD format" in invalid_date["reasons"]
+    assert all(claim["id"] != "BAD-003" for claim in data["claims"])
+    restricted = next(claim for claim in data["claims"] if claim["id"] == "EXP-013")
+    assert {item["rule_id"] for item in restricted["violations"]} == {"restricted_category"}
     assert data["policy"]["categories"]["meals"]["max_amount"] == "50.00"
 
 
 def test_employee_filter_keeps_overview_and_global_input_errors(project):
     data = get(create_app(project), "/api/report?employee=Karan%20Mehta").json()
-    assert data["overview"]["total_flagged_amount"] == "2662.10"
+    assert data["overview"]["total_flagged_amount"] == "14887.09"
     assert data["summary"]["total_flagged_amount"] == "80.00"
     assert data["summary"]["flagged_count"] == 2
     assert {claim["employee"] for claim in data["claims"]} == {"Karan Mehta"}
@@ -235,7 +243,7 @@ def test_failed_upload_has_file_reason_and_keeps_previous_snapshot(project, fiel
     assert result.status_code == 422
     assert result.json()["detail"].startswith("My invalid file:")
     assert "expense-upload-" not in result.text
-    assert get(app, f"/api/report?dataset={token}").json()["overview"]["total_flagged_amount"] == "2662.10"
+    assert get(app, f"/api/report?dataset={token}").json()["overview"]["total_flagged_amount"] == "14887.09"
 
 
 def test_uploaded_paths_are_only_display_names_and_need_no_stored_files(tmp_path):
