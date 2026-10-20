@@ -43,7 +43,7 @@ def test_exit_displays_menu_without_a_report(monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("choice, grouping, heading", [
-    ("1", "employee", "EMPLOYEE: Alice Morgan"),
+    ("1", "employee", "EMPLOYEE: Anika Rao"),
     ("2", "rule", "RULE: Amount limit"),
 ])
 def test_selected_report_is_displayed_then_menu_returns(monkeypatch, capsys, choice, grouping, heading):
@@ -52,8 +52,8 @@ def test_selected_report_is_displayed_then_menu_returns(monkeypatch, capsys, cho
     captured = capsys.readouterr()
     assert f"Grouped by: {grouping}" in captured.out
     assert heading in captured.out
-    assert "Total flagged amount: USD 917.03" in captured.out
-    assert "REJECTED INPUT ROWS: 8" in captured.out
+    assert "Total flagged amount: USD 2662.10" in captured.out
+    assert "REJECTED INPUT ROWS: 28" in captured.out
     assert captured.out.count("EXPENSE POLICY CHECKER") == 2
     assert not captured.err
 
@@ -142,8 +142,8 @@ def test_project_files_do_not_depend_on_working_directory(tmp_path, monkeypatch,
     enter_choices(monkeypatch, ["1", "3"])
     assert check_expenses.main() == 0
     captured = capsys.readouterr()
-    assert "EMPLOYEE: Alice Morgan" in captured.out
-    assert "Total flagged amount: USD 917.03" in captured.out
+    assert "EMPLOYEE: Anika Rao" in captured.out
+    assert "Total flagged amount: USD 2662.10" in captured.out
     assert not captured.err
 
 
@@ -154,7 +154,7 @@ def test_complete_command_displays_both_reports_without_changing_data():
         ROOT / "data" / "out" / "sample_expenses.json",
         ROOT / "data" / "out" / "policy_check_results.json",
     ]
-    original = {path: path.read_bytes() for path in protected}
+    original = {path: path.read_bytes() if path.exists() else None for path in protected}
     result = subprocess.run(
         [sys.executable, "-m", "scripts.check_expenses"],
         input="1\n2\n3\n", text=True, capture_output=True, cwd=ROOT, timeout=10,
@@ -164,12 +164,12 @@ def test_complete_command_displays_both_reports_without_changing_data():
     assert result.stdout.count("Enter your choice:") == 3
     assert result.stdout.count("Grouped by: employee") == 1
     assert result.stdout.count("Grouped by: rule") == 1
-    assert result.stdout.count("Total flagged amount: USD 917.03") == 2
-    assert result.stdout.count("REJECTED INPUT ROWS: 8") == 2
-    assert "EMPLOYEE: Jordan Lee" in result.stdout
+    assert result.stdout.count("Total flagged amount: USD 2662.10") == 2
+    assert result.stdout.count("REJECTED INPUT ROWS: 28") == 2
+    assert "EMPLOYEE: Karan Mehta" in result.stdout
     assert "RULE: Suspected duplicate" in result.stdout
     assert result.stdout.endswith("Goodbye.\n")
-    assert all(path.read_bytes() == original[path] for path in protected)
+    assert {path: path.read_bytes() if path.exists() else None for path in protected} == original
 
 
 def test_complete_command_handles_closed_input():

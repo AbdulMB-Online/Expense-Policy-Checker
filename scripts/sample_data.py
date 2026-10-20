@@ -11,13 +11,13 @@ DEFAULT_SAMPLE_SIZE = 100
 
 
 def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
-    """Return scenarios for the five policy rules plus malformed input rows."""
+    """Return scenarios for data generation."""
     if extra_clean < 0:
         raise ValueError("extra_clean must be nonnegative")
     rows = []
 
     def add(id, amount="20.00", receipt="true", **changes):
-        row = dict(zip(FIELDS, (id, "Alice Morgan", "2026-10-05", "meals", amount, "Team lunch", receipt, "2026-10-05", "")))
+        row = dict(zip(FIELDS, (id, "Anika Rao", "2026-10-05", "meals", amount, "Team lunch", receipt, "2026-10-05", "")))
         row.update(changes)
         rows.append(row)
 
@@ -26,8 +26,8 @@ def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
     add("EXP-003", "50.01")
     add("EXP-004", "40.00", "false", category="transport", description="Taxi to client office")
     add("EXP-005", "75.00", "false")
-    add("EXP-006", "40.00", employee="Jordan Lee", category="transport", description="Taxi to airport")
-    add("EXP-007", "40.00", employee="Jordan Lee", category="transport", description="Taxi to airport")
+    add("EXP-006", "40.00", employee="Karan Mehta", category="transport", description="Taxi to airport")
+    add("EXP-007", "40.00", employee="Karan Mehta", category="transport", description="Taxi to airport")
     add("EXP-008", "0.00", "false", description="Complimentary meal")
     add("EXP-009", "25.00", "false")
     add("EXP-010", "12.34", description="Lunch, client meeting")
@@ -60,7 +60,7 @@ def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
         next_id += 1
 
     # Each boundary matrix has its own employee to avoid incidental duplicates.
-    employees = ("Sam Patel", "María García", "Chen Wei")
+    employees = ("Rohan Desai", "Lucía Torres", "Mei Tan")
     for category, limit, employee in zip(
         ("meals", "transport", "office_supplies"), (5000, 7500, 10000), employees
     ):
@@ -79,23 +79,23 @@ def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
         ("199.99", "true", "1", "Single night below limit"),
         ("200.00", "true", "1", "Single night at limit"),
         ("200.01", "false", "1", "Single night above limit without receipt"),
-        ("600.00", "true", "3", "Three nights at limit"),
+        ("1400.00", "true", "7", "Seven nights at the example policy stay limit and $200 nightly limit"),
         ("600.01", "true", "3", "Three nights one cent over limit"),
         ("0.00", "false", "1", "Complimentary hotel without receipt"),
-        ("300.00", "true", "", "Hotel with missing nights requires review"),
-        ("2000.00", "true", "10", "Long stay at nightly limit"),
+        ("300.00", "true", "", "Hotel violates required nights: no night count supplied"),
+        ("1600.00", "true", "8", "Eight-night hotel exceeds example policy seven-night stay limit"),
     ):
-        scenario(amount, receipt, employee="Priya Shah", category="hotel", nights=nights,
+        scenario(amount, receipt, employee="Kavya Iyer", category="hotel", nights=nights,
                  description=label)
 
     # A three-way duplicate that also breaks amount and receipt rules.
     for label in ("Original", "Resubmission", "Third submission"):
-        scenario("60.00", "false", employee="Omar Hassan", description=f"{label}: client dinner")
+        scenario("60.00", "false", employee="Yusuf Khan", description=f"{label}: client dinner")
     for changes in (
-        {"employee": "Nora Williams"}, {"date": "2026-10-04"},
+        {"employee": "Elena Brooks"}, {"date": "2026-10-04"},
         {"amount": "59.99"}, {"category": "transport"},
     ):
-        values = dict(amount="60.00", receipt="false", employee="Omar Hassan",
+        values = dict(amount="60.00", receipt="false", employee="Yusuf Khan",
                       description="Near duplicate with one business field changed")
         values.update(changes)
         scenario(**values)
@@ -103,26 +103,27 @@ def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
     for incurred, submitted, label in (
         ("2026-09-06", "2026-10-05", "Submitted after 29 days"),
         ("2026-08-01", "2026-10-05", "Very late submission"),
-        ("2026-10-06", "2026-10-05", "Submission before expense requires review"),
+        ("2026-11-05", "2026-10-05", "Future expense date is after submission date"),
         ("2024-02-29", "2024-03-30", "Leap day with 30-day submission"),
         ("2025-12-31", "2026-01-30", "Year boundary with 30-day submission"),
         ("2026-01-31", "2026-03-03", "Month boundary with 31-day submission"),
     ):
-        scenario(employee="Fatima Ali", date=incurred, submission_date=submitted, description=label)
-    for category, amount, receipt in (
-        ("training", "1250.00", "true"), ("equipment", "9999.99", "false"),
-        ("other", "0.00", "true"), ("alcohol", "80.00", "false"),
+        scenario(employee="Amina Rahman", date=incurred, submission_date=submitted, description=label)
+    for category, amount, receipt, label in (
+        ("training", "1250.00", "true", "Unknown category under standard policy requires review: training"),
+        ("equipment", "9999.99", "false", "Unknown category under both policies requires review: equipment"),
+        ("other", "0.00", "true", "Review-required category even for a zero-value expense: other"),
+        ("alcohol", "80.00", "false", "Restricted category violation: alcohol"),
     ):
-        scenario(amount, receipt, employee="Lucas Silva", category=category,
-                 description=f"Category requiring manual review: {category}")
-    scenario("12.50", " TRUE ", employee="  Zoë O’Connor  ", description="  Café lunch  ")
-    scenario("18.5", "FALSE", employee="Zoë O’Connor", description='Client lunch, "working session"')
-    scenario("0009.50", employee="Zoë O’Connor", description="Parking\nreceipt details")
-    scenario("7", employee="Zoë O’Connor", description="Whole-dollar breakfast")
+        scenario(amount, receipt, employee="Rafael Costa", category=category, description=label)
+    scenario("12.50", " TRUE ", employee="  Chloë D’Souza  ", description="  Café lunch  ")
+    scenario("18.5", "FALSE", employee="Chloë D’Souza", description='Client lunch, "working session"')
+    scenario("0009.50", employee="Chloë D’Souza", description="Parking\nreceipt details")
+    scenario("7", employee="Chloë D’Souza", description="Whole-dollar breakfast")
     # Nights is part of the duplicate key, even for otherwise identical stays.
-    scenario("180.00", employee="Avery Kim", category="hotel", nights="1", description="One-night stay")
-    scenario("180.00", employee="Avery Kim", category="hotel", nights="2", description="Two-night stay")
-    scenario("0.01", "false", employee="Avery Kim", category="transport", description="Minimum positive fare")
+    scenario("180.00", employee="Min Park", category="hotel", nights="1", description="One-night stay")
+    scenario("180.00", employee="Min Park", category="hotel", nights="2", description="Two-night stay")
+    scenario("0.01", "false", employee="Min Park", category="transport", description="Minimum positive fare")
 
     invalid_cases = (
         {"category": ""}, {"amount": ""}, {"receipt_attached": ""},
@@ -139,14 +140,18 @@ def sample_rows(extra_clean: int = 0, seed: int = 42) -> list[dict[str, str]]:
         {"description": "   ", "date": "2026-04-31", "submission_date": "invalid"},
     )
     for index, changes in enumerate(invalid_cases, start=7):
-        row = {"description": "Invalid input validation example", **changes}
+        description = (
+            "Hotel with invalid nights: expected a positive integer"
+            if "nights" in changes else "Invalid input validation example"
+        )
+        row = {"description": description, **changes}
         add(f"BAD-{index:03d}", **row)
 
     rng = random.Random(seed)
     for index in range(extra_clean):
         cents = rng.randint(1, 2500)
         add(f"CLEAN-{index + 1:05d}", f"{cents // 100}.{cents % 100:02d}",
-            employee=rng.choice(("Alice Morgan", "Jordan Lee", "Sam Patel")),
+            employee=rng.choice(("Anika Rao", "Karan Mehta", "Rohan Desai")),
             date=f"2026-10-{rng.randint(1, 28):02d}", submission_date="2026-10-28",
             description=f"Generated meal {index + 1}")
     return rows

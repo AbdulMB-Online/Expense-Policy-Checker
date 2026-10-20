@@ -16,7 +16,7 @@ def test_exports_validated_records_and_errors(tmp_path):
     assert len(payload["expenses"]) == 72
     assert len(payload["errors"]) == 28
     assert payload["expenses"][0] == {
-        "id": "EXP-001", "employee": "Alice Morgan", "date": "2026-10-05",
+        "id": "EXP-001", "employee": "Anika Rao", "date": "2026-10-05",
         "category": "meals", "amount": "20.00", "description": "Team lunch",
         "receipt_attached": True,
         "submission_date": "2026-10-05",

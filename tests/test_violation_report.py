@@ -206,14 +206,14 @@ def test_real_sample_report_matches_planted_flags_and_exact_totals():
     }
     employee_groups = group_report(report)
     assert [(group.name, len(group.expenses), group.total_flagged_amount) for group in employee_groups] == [
-        ("Alice Morgan", 8, Decimal("837.03")),
-        ("Chen Wei", 3, Decimal("225.02")),
-        ("Jordan Lee", 2, Decimal("80.00")),
-        ("María García", 3, Decimal("175.02")),
-        ("Nora Williams", 1, Decimal("60.00")),
-        ("Omar Hassan", 6, Decimal("359.99")),
-        ("Priya Shah", 3, Decimal("800.02")),
-        ("Sam Patel", 3, Decimal("125.02")),
+        ("Anika Rao", 8, Decimal("837.03")),
+        ("Elena Brooks", 1, Decimal("60.00")),
+        ("Karan Mehta", 2, Decimal("80.00")),
+        ("Kavya Iyer", 3, Decimal("800.02")),
+        ("Lucía Torres", 3, Decimal("175.02")),
+        ("Mei Tan", 3, Decimal("225.02")),
+        ("Rohan Desai", 3, Decimal("125.02")),
+        ("Yusuf Khan", 6, Decimal("359.99")),
     ]
     rule_groups = group_report(report, group_by="rule")
     assert [(group.key, len(group.expenses), group.total_flagged_amount) for group in rule_groups] == [

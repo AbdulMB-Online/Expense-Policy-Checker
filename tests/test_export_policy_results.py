@@ -8,7 +8,7 @@ from loader.expense_loader import load_expenses
 from loader.policy_loader import load_policy
 from rules.engine import RulesEngine
 from scripts.export_policy_results import export_policy_results
-from scripts.export_json import export_json
+from scripts.export_expenses import export_expenses
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_exports_engine_results_summary_and_loader_errors(tmp_path):
     source = ROOT / "data" / "expenses" / "sample_expenses.csv"
     policy_path = ROOT / "data" / "policy" / "policy.json"
-    existing_export = export_json(source, tmp_path / "sample_expenses.json")
+    existing_export = export_expenses(source, tmp_path / "sample_expenses.json")
     before = existing_export.read_bytes()
     output = export_policy_results(source, policy_path, tmp_path / "nested" / "policy_check_results.json")
     loaded = load_expenses(source)
@@ -69,7 +69,7 @@ def test_cli_writes_output_without_replacing_the_expense_export(tmp_path):
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["summary"]["passed"] + payload["summary"]["flagged"] == payload["summary"]["total_expenses"]
     assert payload["summary"]["loader_errors"] == len(payload["errors"])
-    protected = export_json(ROOT / "data/expenses/sample_expenses.csv", tmp_path / "sample_expenses.json")
+    protected = export_expenses(ROOT / "data/expenses/sample_expenses.csv", tmp_path / "sample_expenses.json")
     original = protected.read_bytes()
     refused = subprocess.run(
         command[:-1] + [str(protected), "--force"],

@@ -50,7 +50,7 @@ All file generation lives in `scripts/`.
 python3 -m scripts.sample_data --force
 
 # artifacts/sample_expenses.json (validated records and loader errors)
-python3 -m scripts.export_json --force
+python3 -m scripts.export_expenses --force
 
 # artifacts/policy_check_results.json (summary, results, and loader errors)
 python3 -m scripts.export_policy_results --force
@@ -66,14 +66,24 @@ python3 -m scripts.export_policy_results \
 
 `--force` replaces existing output; omit it to protect existing files.
 Use `--output PATH` for another destination. To check a generated or custom CSV,
-pass `--expenses PATH` to `export_policy_results` or `--input PATH` to `export_json`.
+pass `--expenses PATH` to `export_policy_results` or `--input PATH` to `export_expenses`.
+
+The sample contains exactly 100 rows across 12 fictional employees. It covers
+amounts, receipts, duplicates, restricted and unknown categories, late submissions,
+future expense dates relative to submission, missing or invalid hotel nights,
+maximum stay length, and categories requiring review. The business travel example
+policy caps hotel stays at seven nights: `EXP-044` is at the cap and `EXP-048`
+exceeds it. The standard policy leaves stay length uncapped. See the
+[sample scenarios](docs/loader.md#sample-scenarios) for IDs and validation details.
 
 ## Policies and reports
 
 
 Results include every detected violation and a `PASS` or `FLAGGED` status.
 Checks cover amounts, receipts, and suspected duplicates. Submission deadlines,
-restricted categories, and manual-review settings still require manual review.
+restricted and unknown categories, future dates, missing hotel nights, stay lengths,
+and review-required classifications still require manual review. Invalid supplied
+night counts are rejected by the loader before policy evaluation.
 
 - `build_report(...)` creates an immutable report with summary counts and the
   unique flagged-claim total. It rejects duplicate input IDs and engine result

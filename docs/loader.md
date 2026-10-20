@@ -34,7 +34,7 @@ python3 -m scripts.export_policy --input data/policy/policy.json --output data/o
 
 The expense exporter calls `load_expenses` and writes an object with `expenses`
 (validated records) and `errors` (rejected row IDs, line numbers, and reasons). The
-default sample produces 22 expense records and 8 errors. Dates use ISO strings,
+default sample produces 72 expense records and 28 errors. Dates use ISO strings,
 amounts use decimal strings to preserve precision, and receipts use JSON booleans.
 Both expense paths above are defaults, so `python3 -m scripts.export_expenses` also works.
 
@@ -51,7 +51,7 @@ Required headers, in any order:
 
 ```csv
 id,employee,date,category,amount,description,receipt_attached,submission_date,nights
-EXP-001,Alice Morgan,2026-10-05,meals,20.00,Team lunch,true,2026-10-05,
+EXP-001,Anika Rao,2026-10-05,meals,20.00,Team lunch,true,2026-10-05,
 ```
 
 - All headers are required. Field values are required and trimmed except for
@@ -106,21 +106,25 @@ reading or enforcing the policy file.
 ## Sample scenarios
 
 The default sample has exactly 100 data rows (excluding the header): 72 valid
-expenses and 28 invalid rows. It includes examples for five policy scenarios:
-category amount limits, required receipts, suspected duplicates, submission
-deadlines, and restricted categories. The external
+expenses and 28 invalid rows. It includes examples for category amount limits,
+required receipts, suspected duplicates, submission deadlines, restricted and
+unknown categories, future expense dates, missing or invalid hotel nights,
+maximum hotel stay length, and review-required classifications. The external
 [JSON policy](../data/policy/policy.json) defines meals at $50 per expense,
 hotel at $200 per night, transport at $75 per expense, and office supplies at $100
 per expense. Hotel receipts are always required; the other three categories
 require receipts above $25. Submission is allowed within 30 days inclusive,
 alcohol is restricted, and `other` or unknown categories require review. The
+standard policy has no maximum stay length; the generated business travel policy
+sets `max_nights_per_stay` to seven to exercise the overlong-stay scenario. The
 30-day deadline and alcohol restriction are project-chosen examples of the
 overview's rules; category limits and receipts follow the category screenshot. These
 are sample policy values; the loader does not enforce policy rules. The rules
 engine currently implements amount limits, receipt requirements, and suspected
-duplicates. Submission deadlines, restricted categories, and manual-review
-settings are not yet enforced. See the
-[violation reporting guide](../README.md#violation-reporting) for
+duplicates. Submission deadlines, restricted and unknown categories, future dates,
+missing hotel nights, stay lengths, and review-required classifications are not
+yet enforced. Invalid supplied nights are rejected by the loader. See the
+[violation reporting guide](../README.md#policies-and-reports) for
 grouped report usage.
 
 - `EXP-001`: clean meal; `EXP-002`: exactly $50; `EXP-003`: $50.01.
@@ -147,19 +151,30 @@ grouped report usage.
   the receipt threshold and category limit, including combined violations.
 - `EXP-041`–`EXP-048`: single-night, multi-night, and long hotel stays,
   one-cent nightly overages, a complimentary stay without receipt, and missing nights.
+  `EXP-044` has seven nights at $200 per night; `EXP-048` has eight nights at
+  $200 per night, exceeding the example policy's seven-night cap while staying
+  within both policies' nightly amount limits. `EXP-047` omits required hotel nights.
 - `EXP-049`–`EXP-055`: three matching dinners with multiple violations and
   near matches differing in employee, date, amount, or category.
 - `EXP-056`–`EXP-061`: 29-day and very late submissions, submission before
   the expense, leap day, and month/year boundaries.
+  `EXP-058` is dated November 5, 2026, after its October 5 submission. Future
+  dates are defined relative to the fixed submission date so generation stays
+  reproducible as the calendar changes.
 - `EXP-062`–`EXP-065`: unknown categories, zero-value `other`, and alcohol.
+  `training` is unknown under the standard policy, while `equipment` is unknown
+  under both policies. `EXP-022` and `EXP-064` require review through the known
+  `other` category; `EXP-013` and `EXP-065` use restricted `alcohol`.
 - `EXP-066`–`EXP-069`: Unicode, whitespace trimming, mixed-case receipt
   booleans, CSV commas/quotes/newlines, and accepted decimal formats.
 - `EXP-070`–`EXP-072`: hotel near matches differing only in nights and a one-cent fare.
 - `BAD-007`–`BAD-026`: missing fields, excessive precision, exponent notation,
   NaN/infinity, currency symbols, thousands separators, invalid dates and nights,
   and rows with multiple validation errors.
+  `BAD-021`–`BAD-024` supply hotel nights of zero, negative one, a fraction, and text.
 
-These cases span 12 employees. Date ordering, missing hotel nights, and category
+These cases span 12 fictional employees, including names with accents and curly
+apostrophes. Date ordering, missing hotel nights, maximum stay length, and category
 review cases demonstrate gaps requiring manual review in the current engine;
 a `PASS` for these cases only reflects the implemented checks.
 
