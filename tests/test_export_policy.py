@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from loader.policy_loader import load_policy
-from scripts.export_policy import export_policy
+from backend.loader.policy_loader import load_policy
+from backend.scripts.export_policy import export_policy
 
 POLICY_PATH = Path(__file__).resolve().parents[1] / "data" / "policy" / "policy.json"
 
@@ -51,7 +51,7 @@ def test_export_cli(tmp_path):
     source = tmp_path / "policy.json"
     source.write_text(POLICY_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     output = tmp_path / "out.json"
-    command = [sys.executable, "-m", "scripts.export_policy", "--input", str(source), "--output", str(output)]
+    command = [sys.executable, "-m", "backend.scripts.export_policy", "--input", str(source), "--output", str(output)]
     success = subprocess.run(command, capture_output=True, text=True)
     assert success.returncode == 0
     assert json.loads(output.read_text())["name"]

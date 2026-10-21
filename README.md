@@ -7,17 +7,128 @@ reports grouped by employee or policy rule for finance review.
 ## Browser dashboard
 
 A React dashboard supports custom CSV/policy JSON uploads, employee/rule views,
-filters, claim details, rejected records, and report downloads. Its **User view**
+filters, claim details, rejected records, and report downloads. Its employee workspace
 accepts expense submissions and receipt attachments, checks the policy, and adds
-saved claims to the dashboard report. See the
+saved claims to the dashboard report. Demo employee and reviewer accounts have
+separate access, with individual approvals and review history. See the
 [dashboard setup guide](frontend/README.md) to install and run it locally.
+
+Sign-in loads registered accounts from the SQLite `users` table and routes each
+account by its saved role. Reviewers can create and select policies in a durable
+policy library. The interface supports persistent dark and light themes.
+
+## Backend structure
+
+All Python application code lives in `backend/`. Run commands from the repository
+root using the `backend.` package prefix:
+
+```sh
+python3 -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8000
+python3 -m backend.scripts.check_expenses
+```
+
+- `backend/api/`: application factory, request schemas, authentication
+  dependencies, error responses, and route groups.
+- `backend/services/`: report evaluation and exports, input validation,
+  submissions, reviews, and source snapshots. Services do not import FastAPI.
+- `backend/database/`: SQLite repositories, schema, transactions, and lossless
+  record serialization.
+- `backend/loader/`, `backend/rules/`, and `backend/reporting/`: parsing, policy
+  checks, and report rendering shared by the web application and CLI.
+- `backend/scripts/`: CLI entry points and artifact-generation commands.
+
+Each application instance composes its own services and repositories.
+Routes handle HTTP inputs and responses; services coordinate workflows;
+repositories own SQL and transaction boundaries. Full-input validation remains
+inside submission transactions, and report filtering happens after policy checks.
+The frontend, `data/`, `artifacts/`, and Python tests retain their existing locations.
+
+After installing `requirements-dev.txt`, run the backend checks with:
+
+```sh
+python3 -m pytest -q
+python3 -m ruff check backend
+python3 -m ruff format --check backend
+```
+
+## Local database and attachments
+
+The web app uses Python's built-in `sqlite3`; no database server or object-storage
+service is required. Everything is stored in `artifacts/submissions.sqlite3`.
+The database is initialized on first use, with 12 employee demo accounts matching
+the sample data and two finance reviewer accounts. Start the dashboard using the
+[local setup instructions](frontend/README.md#run-the-dashboard).
+
+Original expense CSVs, policy JSON files, receipt attachments, and downloaded web
+reports are stored directly in the `artifacts.contents` BLOB column. Metadata
+includes the filename, media type, byte size, SHA-256 checksum, uploader, and UTC
+creation time. Receipt uploads accept PDF, PNG, or JPEG files up to 5 MiB. File
+bytes are fetched only by download operations, not artifact list queries. Keeping
+these small local-demo attachments in SQLite makes a database backup include
+both the records and their files.
+
+The database layer is split into:
+
+- `backend/database/core.py` and `schema.py`: connections, foreign keys,
+  transactions, versioned schema, demo accounts, and legacy database migration.
+- `backend/database/submissions.py`: atomic form-expense and receipt saves, plus retry
+  deduplication scoped to the submitting account.
+- `backend/database/workspace.py`: composition of the focused `sessions.py`,
+  `datasets.py`, `checks.py`, `reviews.py`, and `artifacts.py` repositories.
+
+`datasets` links original artifacts and parsed CSV input, including rejected rows.
+`policy_versions` preserves validated policy JSON by content hash. `expenses`
+indexes workspace, owner, origin, and source expense ID; `expense_revisions`
+retains immutable validated records and receipt links. Amounts remain exact
+**decimal strings** in JSON records and are evaluated using Python `Decimal`;
+SQLite floating-point arithmetic is not used for financial totals.
+`check_runs` and `check_results` pin each evaluation to its policy, engine source
+hash, full ordered revision set, and validation errors. Reads reuse those findings.
+`review_events` records the reviewer, decision, comment, revision, and run. A
+revision can receive one decision; corrections create a new revision rather than
+rewriting the old decision. Transactions reject competing or stale decisions.
+
+`PRAGMA user_version` tracks the schema version. Version 1 migrates the original
+`submissions` table into expenses, revisions, and BLOB artifacts in one
+transaction. Existing receipts and exact amounts are retained; the legacy table
+is kept for recovery but is no longer used. Previously uploaded in-memory datasets
+from an older server need one re-upload because their original bytes were not saved.
+
+All report and receipt endpoints require demo sign-in. Useful API endpoints are:
+
+- `GET /api/demo/accounts`, `POST /api/demo/login` with `{"user_id":"employee-anika"}`,
+  `GET /api/session`, and `POST /api/demo/logout`.
+- `GET /api/datasets`: saved inputs available to the active account.
+- `GET /api/artifacts` and `GET /api/artifacts/{id}`: reviewer metadata/downloads.
+- `GET /api/check-runs/{id}`: reviewer access to original policy, input revisions,
+  validation errors, and findings from a historical run.
+- `POST /api/expenses/{id}/owner`: reviewer mapping for an unmatched import.
+- `POST /api/expenses/{id}/review`: individual decision with `run_id`,
+  `revision_id`, `decision`, and `comment`.
+- `GET /api/expenses/{id}/history`: decision history for the owner or reviewers.
+- `PUT /api/expenses/{id}`: owner correction after requested changes, including
+  the expected `revision` and optionally a replacement receipt.
+
+Expense endpoints accept `?dataset=...` for an uploaded workspace; form endpoints
+accept `dataset` as a form field. The active workspace always determines currency.
+Interactive request schemas are available at `/docs` while the API is running.
+
+For a consistent backup, use SQLite's backup command (choose a new destination):
+
+```sh
+sqlite3 artifacts/submissions.sqlite3 ".backup artifacts/expense-backup.sqlite3"
+```
+
+The backup includes attachment bytes, historical inputs, and review records.
+Restore with the application stopped by placing the backup at the original
+`artifacts/submissions.sqlite3` location. Database files stay outside Git.
 
 ## Quick start
 
 Requires Python 3.11+. Run from the repository root:
 
 ```sh
-python3 -m scripts.check_expenses
+python3 -m backend.scripts.check_expenses
 ```
 
 The tool automatically reads the stored expense CSV and policy JSON, then shows:
@@ -42,7 +153,7 @@ No file paths are requested, and viewing reports does not modify stored data.
 To save policy results as JSON instead:
 
 ```sh
-python3 -m scripts.export_policy_results --force
+python3 -m backend.scripts.export_policy_results --force
 ```
 
 This checks `data/expenses/sample_expenses.csv` using `data/policy/policy.json`
@@ -51,23 +162,23 @@ generated results file. The stored claims and policy are unchanged.
 
 ## Generate artifacts
 
-All file generation lives in `scripts/`.
+All file generation lives in `backend/scripts/`.
 
 ```sh
 # artifacts/sample_expenses.csv (reproducible copy of the sample)
-python3 -m scripts.sample_data --force
+python3 -m backend.scripts.sample_data --force
 
 # artifacts/sample_expenses.json (validated records and loader errors)
-python3 -m scripts.export_expenses --force
+python3 -m backend.scripts.export_expenses --force
 
 # artifacts/policy_check_results.json (summary, results, and loader errors)
-python3 -m scripts.export_policy_results --force
+python3 -m backend.scripts.export_policy_results --force
 
 # artifacts/business_travel.json (alternative policy)
-python3 -m scripts.generate_example_policy --force
+python3 -m backend.scripts.generate_example_policy --force
 
 # artifacts/business_travel_results.json
-python3 -m scripts.export_policy_results \
+python3 -m backend.scripts.export_policy_results \
   --policy artifacts/business_travel.json \
   --output artifacts/business_travel_results.json --force
 ```

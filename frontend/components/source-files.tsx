@@ -1,9 +1,10 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type ReactNode, type FormEvent } from "react";
 import { FileJson, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadReport, type Report } from "@/lib/report";
 
-export function SourceFiles({ report, busy, onReport, onSamples, onBusy }: {
+export function SourceFiles({ report, busy, onReport, onSamples, onBusy, children }: {
+  children?: ReactNode;
   report: Report | null; busy: boolean; onReport: (report: Report) => void;
   onSamples: () => void; onBusy: (busy: boolean) => void;
 }) {
@@ -38,8 +39,9 @@ export function SourceFiles({ report, busy, onReport, onSamples, onBusy }: {
     }
   }
 
-  return <section className="source-panel" aria-labelledby="source-title">
+  return <section id="source-files" className="source-panel" aria-labelledby="source-title">
     <div className="source-heading"><div><h2 id="source-title">Report files</h2><p>Upload either file to replace it. The other active file stays in use.</p></div><span className="source-mode">{report?.dataset_id ? "Uploaded files active" : "Stored sample files"}</span></div>
+    {children}
     <form ref={form} onSubmit={submit}>
       <div className="source-inputs">
         <label className="source-field"><span><FileSpreadsheet size={16} />Expense CSV</span><input type="file" accept=".csv,text/csv" disabled={busy || sending} onChange={(event) => setExpenses(event.target.files?.[0] ?? null)} /><small title={report?.sources.expenses}>Active: {report?.sources.expenses ?? "Stored expense CSV"}</small></label>

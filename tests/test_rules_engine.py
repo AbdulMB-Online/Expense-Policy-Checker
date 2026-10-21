@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from loader.expense_loader import Expense, load_expenses
-from loader.policy_loader import load_policy
-from rules.base import PolicyRule, PolicyViolation
-from rules.engine import (
+from backend.loader.expense_loader import Expense, load_expenses
+from backend.loader.policy_loader import load_policy
+from backend.rules.base import PolicyRule, PolicyViolation
+from backend.rules.engine import (
     AmountLimitRule,
     DuplicateRule,
     FutureExpenseDateRule,
@@ -26,7 +26,7 @@ from rules.engine import (
     SubmissionDeadlineRule,
     UnknownCategoryRule,
 )
-from scripts.generate_example_policy import generate_policy
+from backend.scripts.generate_example_policy import generate_policy
 
 
 ROOT = Path(__file__).resolve().parents[1]

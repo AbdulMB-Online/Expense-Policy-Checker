@@ -7,9 +7,9 @@ import sys
 
 import pytest
 
-from loader.expense_loader import FIELDS
-from scripts import check_expenses
-from scripts.sample_data import generate_sample
+from backend.loader.expense_loader import FIELDS
+from backend.scripts import check_expenses
+from backend.scripts.sample_data import generate_sample
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -160,7 +160,7 @@ def test_complete_command_displays_both_reports_without_changing_data():
     ]
     original = {path: path.read_bytes() if path.exists() else None for path in protected}
     result = subprocess.run(
-        [sys.executable, "-m", "scripts.check_expenses"],
+        [sys.executable, "-m", "backend.scripts.check_expenses"],
         input="1\n2\n3\n", text=True, capture_output=True, cwd=ROOT, timeout=10,
     )
     assert result.returncode == 0
@@ -181,7 +181,7 @@ def test_complete_command_displays_both_reports_without_changing_data():
 
 def test_complete_command_handles_closed_input():
     result = subprocess.run(
-        [sys.executable, "-m", "scripts.check_expenses"],
+        [sys.executable, "-m", "backend.scripts.check_expenses"],
         input="", text=True, capture_output=True, cwd=ROOT, timeout=10,
     )
     assert result.returncode == 0

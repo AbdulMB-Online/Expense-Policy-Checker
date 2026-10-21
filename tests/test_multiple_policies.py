@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from scripts.generate_example_policy import BUSINESS_TRAVEL_POLICY, generate_policy
-from loader.expense_loader import load_expenses
-from loader.policy_loader import load_policy
-from rules.engine import RulesEngine
+from backend.scripts.generate_example_policy import BUSINESS_TRAVEL_POLICY, generate_policy
+from backend.loader.expense_loader import load_expenses
+from backend.loader.policy_loader import load_policy
+from backend.rules.engine import RulesEngine
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,7 +55,7 @@ def test_cli_selects_each_policy_and_keeps_separate_results(tmp_path, travel_pol
     for policy in (STANDARD, travel_policy):
         output = tmp_path / f"{policy.stem}_results.json"
         result = subprocess.run(
-            [sys.executable, "-m", "scripts.export_policy_results",
+            [sys.executable, "-m", "backend.scripts.export_policy_results",
              "--policy", str(policy), "--output", str(output)],
             cwd=ROOT, capture_output=True, text=True,
         )
@@ -75,7 +75,7 @@ def test_cli_selects_each_policy_and_keeps_separate_results(tmp_path, travel_pol
 
 def test_generated_policy_matches_settings_and_requires_force_to_overwrite(tmp_path):
     output = tmp_path / "nested" / "business_travel.json"
-    command = [sys.executable, "-m", "scripts.generate_example_policy",
+    command = [sys.executable, "-m", "backend.scripts.generate_example_policy",
                "--output", str(output)]
     generated = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
     assert generated.returncode == 0, generated.stderr

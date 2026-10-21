@@ -30,6 +30,11 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Lint and check backend formatting
+        run: |
+          python -m ruff check backend
+          python -m ruff format --check backend
+
   frontend:
     name: React tests and build
     runs-on: ubuntu-latest

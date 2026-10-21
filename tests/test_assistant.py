@@ -6,14 +6,15 @@ from decimal import Decimal
 import httpx
 import pytest
 
-from api.app import create_app
-from assistant.service import ReportAssistant
+from backend.api.app import create_app
+from backend.assistant.service import ReportAssistant
 from test_api import project, get, upload, uploaded_files
 
 
 def chat(app, **kwargs):
     async def request():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/api/demo/login", json={"user_id": "reviewer-finance"})
             return await client.post("/api/assistant/chat", json={"messages": [{"role": "user", "content": "What should I review?"}], **kwargs})
     return asyncio.run(request())
 
@@ -133,7 +134,7 @@ def test_new_submissions_are_in_chat_without_receipt_contents(project, provider)
 
 
 def test_large_context_is_rejected_explicitly_before_provider(project, provider):
-    from assistant.service import AssistantError, ChatRequest
+    from backend.assistant.service import AssistantError, ChatRequest
     app = create_app(project)
     report = get(app, "/api/report").json()
     report["claims"][0]["description"] = "x" * 300001
@@ -212,3 +213,16 @@ def test_chat_completions_rejects_incomplete_answers(project, provider, monkeypa
     monkeypatch.setenv("LLM_API", "chat_completions")
     monkeypatch.setattr(httpx.Client, "post", lambda *a, **k: httpx.Response(200, json={"choices": choices}))
     assert chat(create_app(project)).status_code == 502
+
+
+@pytest.mark.parametrize("user_id,expected", [(None, 401), ("employee-anika", 403)])
+def test_only_signed_in_reviewers_can_use_assistant(project, provider, user_id, expected):
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=create_app(project)), base_url="http://test") as client:
+            if user_id:
+                await client.post("/api/demo/login", json={"user_id": user_id})
+            assert (await client.get("/api/assistant/status")).status_code == expected
+            response = await client.post("/api/assistant/chat", json={"messages": [{"role": "user", "content": "Show company expenses"}]})
+            assert response.status_code == expected
+    asyncio.run(run())
+    assert not provider
