@@ -5,3 +5,8 @@ include = ["backend/**/*.py"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.1.0",
+]
