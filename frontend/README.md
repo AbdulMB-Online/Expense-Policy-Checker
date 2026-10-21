@@ -26,6 +26,11 @@ SQLite `users` table; the server returns the stored role and the dashboard opens
 the matching workspace. Demo accounts do not require a password. There is no
 role selector or reviewer/employee view switch inside the dashboard.
 
+Reviewers have separate **Overview**, **Claims to review**, **All expenses**,
+**Import files**, and **Input issues** tabs. Employees use **Submit expense**
+and **My expenses**. The sidebar switches the same views; drafts, selected files,
+and review filters stay intact while switching tabs.
+
 Dark mode is the default. The header theme control switches between dark and
 light and remembers the preference in the browser. **Refresh report** reloads the inputs
 and uses saved check results when the expense revisions, policy, and engine are unchanged.

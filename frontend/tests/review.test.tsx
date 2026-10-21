@@ -89,8 +89,11 @@ it("restores a saved dataset and exposes unflagged imported claims for review", 
     return response(url.includes("dataset=saved-october") ? { ...fixture, dataset_id: "saved-october", claims: [claim] } : fixture);
   }));
   render(<Component user={demoReviewer} />);
+  await user.click(screen.getByRole("tab", { name: "Claims to review" }));
   await screen.findByRole("button", { name: /Alice Morgan.*flagged/ });
+  await user.click(screen.getByRole("tab", { name: "Import files" }));
   await user.selectOptions(screen.getByLabelText("Saved datasets"), "saved-october");
+  await user.click(screen.getByRole("tab", { name: "All expenses" }));
   await user.click(await screen.findByRole("button", { name: "View review expense CLEAN-1" }));
   expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Approve expense" })).toBeInTheDocument();
   expect(localStorage.getItem(`expense-dataset-${demoReviewer.id}`)).toBe("saved-october");

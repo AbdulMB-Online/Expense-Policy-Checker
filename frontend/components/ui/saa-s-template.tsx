@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowDownToLine, ArrowUpRight, Check, CheckCheck, ChevronDown,
   CircleAlert, CircleCheck, FileCheck2, FileText, Info, Layers3, Loader2,
@@ -15,6 +15,18 @@ import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-vi
 import { ExpenseReview } from "@/components/expense-review";
 import { categoryLabel, dateLabel, money, readReport, reportQuery, apiJson, type DemoUser, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
 
+const reviewerTabs = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "reports", label: "Claims to review", icon: FileText },
+  { id: "expenses", label: "All expenses", icon: ReceiptText },
+  { id: "imports", label: "Import files", icon: Upload },
+  { id: "issues", label: "Input issues", icon: CircleAlert },
+];
+const employeeTabs = [
+  { id: "submit", label: "Submit expense", icon: Upload },
+  { id: "expenses", label: "My expenses", icon: ReceiptText },
+];
+
 function Brand({ onHome }: { onHome: () => void }) {
   return <a href="#main-content" className="brand" aria-label="ExpenseCheck overview" onClick={onHome}>
     <span className="brand-mark"><CheckCheck size={23} strokeWidth={2.5} /></span>
@@ -22,24 +34,21 @@ function Brand({ onHome }: { onHome: () => void }) {
   </a>;
 }
 
-const Navigation = React.memo(function Navigation({ issueCount, openPolicy, openIssues, user, onLogout }: {
-  issueCount: number; openPolicy: () => void; openIssues: () => void;
+const Navigation = React.memo(function Navigation({ issueCount, openPolicy, activeTab, onTabChange, user, onLogout }: {
+  issueCount: number; openPolicy: () => void; activeTab: string; onTabChange: (tab: string) => void;
   user: DemoUser; onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = user.name.split(" ").map((word) => word[0]).slice(0, 2).join("");
   return <header className="site-header">
     <nav className="header-inner" aria-label="Main navigation">
-      <Brand onHome={() => setMobileOpen(false)} />
+      <Brand onHome={() => { onTabChange(user.role === "reviewer" ? "overview" : "submit"); setMobileOpen(false); }} />
       <div className="workspace-switch"><Building2 size={18} /><span>Company workspace<small>Expense management</small></span></div>
       <div className={`navigation-links ${mobileOpen ? "is-open" : ""}`}>
         <span className="nav-section-label">Workspace</span>
-        {user.role === "reviewer" && <a href="#overview" className="nav-active" onClick={() => { setMobileOpen(false); }}><LayoutDashboard size={18} />Expense review</a>}
-        {user.role === "employee" && <a href="#submit-expense" className="nav-active" onClick={() => setMobileOpen(false)}><ReceiptText size={18} />My expenses</a>}
-        {user.role === "reviewer" && <a href="#reports" onClick={() => { setMobileOpen(false); }}><FileText size={18} />Reports</a>}
+        {(user.role === "reviewer" ? reviewerTabs : employeeTabs).map(({ id, label, icon: Icon }) => <button key={id} className={activeTab === id ? "nav-active" : ""} aria-current={activeTab === id ? "page" : undefined} onClick={() => { onTabChange(id); setMobileOpen(false); }}><Icon size={18} />{label}{id === "issues" && <span className="nav-count">{issueCount}</span>}</button>)}
         <span className="nav-section-label nav-section-secondary">Manage</span>
         <button onClick={() => { openPolicy(); setMobileOpen(false); }}><ShieldCheck size={18} />Policy</button>
-        {user.role === "reviewer" && <><a href="#source-files" onClick={() => { setMobileOpen(false); }}><Upload size={18} />Import files</a><button onClick={() => { openIssues(); setMobileOpen(false); }}><CircleAlert size={18} />Input issues <span className="nav-count">{issueCount}</span></button></>}
       </div>
       <div className="sidebar-note"><ShieldCheck size={22} /><strong>Your policy. A clearer process.</strong><p>Every flag has a reason. Every decision stays with you.</p><button onClick={openPolicy}>Explore your policy <ChevronRight size={14} /></button></div>
       <div className="workspace-label"><span className="workspace-avatar">{initials}</span><span className="account-name">{user.name}<small>{user.role === "reviewer" ? "Finance reviewer" : "Employee account"}</small></span><button onClick={onLogout} aria-label="Switch account" title="Switch account"><LogOut size={17} /></button></div>
@@ -139,7 +148,8 @@ function PolicyDetails({ open, close, report }: { open: boolean; close: () => vo
 }
 
 export default function Component({ user, onLogout = () => {} }: { user: DemoUser; onLogout?: () => void }) {
-  const view = user.role === "reviewer" ? "review" : "submit";
+  const [activeTab, setActiveTab] = useState(user.role === "reviewer" ? "overview" : "submit");
+  const workspaceTabs = user.role === "reviewer" ? reviewerTabs : employeeTabs;
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -159,7 +169,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
-  const issuesRef = useRef<HTMLElement>(null);
+
 
   useEffect(() => {
     if (dataset) localStorage.setItem(`expense-dataset-${user.id}`, dataset);
@@ -201,10 +211,6 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   }
 
   const refresh = () => setRefreshCount((value) => value + 1);
-  const openIssues = () => {
-    setIssuesOpen(true);
-    setTimeout(() => issuesRef.current?.scrollIntoView({ behavior: "auto", block: "start" }), 0);
-  };
   async function download() {
     setExporting(true);
     setExportError("");
@@ -227,16 +233,24 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const groups = report?.groups[grouping] ?? [];
   const pending = loading || uploading || submitting || search !== debouncedSearch;
   return <div className="app-shell">
-    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => user.role === "reviewer" ? setLibraryOpen(true) : setPolicyOpen(true)} openIssues={openIssues} user={user} onLogout={onLogout} />
+    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => user.role === "reviewer" ? setLibraryOpen(true) : setPolicyOpen(true)} activeTab={activeTab} onTabChange={setActiveTab} user={user} onLogout={onLogout} />
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <div className="workspace-topbar"><span>Workspace <ChevronRight size={14} /><strong>{view === "review" ? "Expense review" : "My expenses"}</strong></span><ThemeToggle /></div>
+    <div className="workspace-topbar"><span>Workspace <ChevronRight size={14} /><strong>{workspaceTabs.find((tab) => tab.id === activeTab)?.label}</strong></span><ThemeToggle /></div>
     <main className="dashboard-container" id="main-content">
       {user.role === "reviewer" && <div className="workspace-controls"><button className="active-policy-button" onClick={() => setLibraryOpen(true)} disabled={pending}><ShieldCheck size={15} /><span>{report?.policy.name ?? "Policies"}</span><ChevronDown size={13} /></button></div>}
       {error && <div className="error-banner" role="alert"><CircleAlert size={18} /><div><strong>We couldn't load your report.</strong><p>{error}</p></div><Button variant="outline" onClick={refresh}>Try again</Button></div>}
-      {user.role === "employee" && <div><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} /></div>}
-      {user.role === "reviewer" && <div hidden={view !== "review"}>
-      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "auto" })} />
+      <Tabs className="workspace-tabs" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="workspace-tab-list" aria-label="Workspace sections">{workspaceTabs.map(({ id, label }) => <TabsTrigger key={id} value={id}>{label}</TabsTrigger>)}</TabsList>
+        {user.role === "employee" && <>
+          <TabsContent value="submit" forceMount hidden={activeTab !== "submit"}><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} showSubmitted={false} /></TabsContent>
+          <TabsContent value="expenses" forceMount hidden={activeTab !== "expenses"}><header className="workspace-page-heading"><h1>My expenses</h1><p>Track your submitted claims and review their status.</p></header>{report && <SubmittedExpenses report={report} onClaim={setSelectedClaim} />}</TabsContent>
+        </>}
+        {user.role === "reviewer" && <>
+        <TabsContent value="overview" forceMount hidden={activeTab !== "overview"}>
+      <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => setActiveTab("reports")} />
       <Metrics report={error ? null : report} />
+      </TabsContent>
+      <TabsContent value="reports" forceMount hidden={activeTab !== "reports"}>
       <section className="reports-section" id="reports" aria-busy={pending}>
         <div className="section-heading"><div><h2>Claims to review <span className="heading-count">{report?.overview.flagged_count ?? "—"}</span></h2><p>Review policy exceptions by employee or by the rule they triggered.</p></div>
           <Button variant="outline" className="export-button" disabled={!report || pending || !!error || exporting} onClick={download}>{exporting ? <Loader2 size={14} className="spin" /> : <ArrowDownToLine size={14} />}Export report</Button>
@@ -252,16 +266,22 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
           <div className="workspace-footer"><ShieldCheck size={13} /><span>Automated checks are a first pass. Final decisions stay with your finance team.</span><span className="footer-reasons">{report?.overview.violation_count ?? "—"} total reasons</span></div>
         </Tabs>
       </section>
-      {!!report?.claims.length && <SubmittedExpenses report={report} all onClaim={setSelectedClaim} />}
+      </TabsContent>
+      <TabsContent value="expenses" forceMount hidden={activeTab !== "expenses"}><header className="workspace-page-heading"><h1>All expenses</h1><p>Browse every claim, including those without policy flags.</p></header>{report && <SubmittedExpenses report={report} all onClaim={setSelectedClaim} />}</TabsContent>
+      <TabsContent value="imports" forceMount hidden={activeTab !== "imports"}><header className="workspace-page-heading"><h1>Import files</h1><p>Check new expense records or reopen an earlier import.</p></header>
       <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading}>
         <div className="source-saved-files"><label className="saved-datasets">Previously imported files<select aria-label="Saved datasets" disabled={pending} value={dataset ?? ""} onChange={(event) => { changeSource(null); setDataset(event.target.value || null); }}><option value="">Company sample</option>{datasets.map((item) => <option key={item.id} value={item.id}>{item.expenses} · {item.policy}</option>)}</select></label><p>Reopen an earlier import with its saved policy.</p>{datasetsError && <p role="alert">Could not load saved imports: {datasetsError}</p>}</div>
       </SourceFiles>
-      <section ref={issuesRef} id="input-issues" className="input-issues">
+      </TabsContent>
+      <TabsContent value="issues" forceMount hidden={activeTab !== "issues"}><header className="workspace-page-heading"><h1>Input issues</h1><p>Inspect rejected records before reviewing policy results.</p></header>
+      <section id="input-issues" className="input-issues">
         <button className="issues-heading" onClick={() => setIssuesOpen(!issuesOpen)} aria-expanded={issuesOpen}><span className="issues-icon"><CircleAlert size={19} /></span><span><strong>{report?.errors.length ? "A few records need fixing" : "Input records"} <Badge variant="outline">{report?.errors.length ?? 0}</Badge></strong><small>Rejected rows across the source file. Correct these before policy review.</small></span><span className="issues-toggle">{issuesOpen ? "Hide details" : "View details"}<ChevronDown size={15} className={issuesOpen ? "rotate-180" : ""} /></span></button>
         {issuesOpen && <div className="issues-list">{report?.errors.length ? report.errors.map((issue) => <div className="issue-row" key={issue.line_number}><span className="issue-line">Line {issue.line_number}</span><strong>{issue.expense_id ?? "ID unavailable"}</strong><span>{issue.reasons.join(" · ")}</span></div>) : <div className="no-issues"><Check size={15} />No rejected records in the source file.</div>}</div>}
       </section>
-      <footer className="page-footer"><span><ShieldCheck size={13} />Expense Policy Checker</span><span>{report ? <>{report.sources.expenses}<span className="footer-dot">·</span>Updated {new Date(report.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</> : "Connecting to your expense records"}</span><button onClick={() => setPolicyOpen(true)}>View active policy<ArrowUpRight size={12} /></button></footer>
-      </div>}
+      </TabsContent>
+      </>}
+      </Tabs>
+      {user.role === "reviewer" && <footer className="page-footer"><span><ShieldCheck size={13} />Expense Policy Checker</span><span>{report ? <>{report.sources.expenses}<span className="footer-dot">·</span>Updated {new Date(report.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</> : "Connecting to your expense records"}</span><button onClick={() => setPolicyOpen(true)}>View active policy<ArrowUpRight size={12} /></button></footer>}
     </main>
     <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} user={user} onSaved={(data) => { changeSource(data); setSelectedClaim(data.claims.find((item) => item.id === selectedClaim?.id) ?? null); }} />
     {user.role === "reviewer" && <PolicyLibrary open={libraryOpen} close={() => setLibraryOpen(false)} report={report} onReport={changeSource} onBusy={setUploading} />}

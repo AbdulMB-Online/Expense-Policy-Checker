@@ -21,7 +21,8 @@ export function SubmittedExpenses({ report, onClaim, all = false }: { report: Re
   </section>;
 }
 
-export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user }: {
+export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, showSubmitted = true }: {
+  showSubmitted?: boolean;
   report: Report | null; busy: boolean; onBusy: (busy: boolean) => void;
   onSaved: (report: Report) => void; onClaim: (claim: Claim) => void;
   user: DemoUser;
@@ -141,7 +142,7 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user }
         </form>
         <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />Active policy</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{categoryLabel(draft.category)}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Enter the claim details.</li><li>Attach the supporting receipt.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
       </div>
-      <SubmittedExpenses report={report} onClaim={onClaim} />
+      {showSubmitted && <SubmittedExpenses report={report} onClaim={onClaim} />}
     </>}
   </section>;
 }

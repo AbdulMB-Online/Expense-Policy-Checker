@@ -447,3 +447,16 @@ input::file-selector-button { padding: 7px 11px; margin-right: 10px; border: 1px
 .dark .navigation-links.is-open { background: #182230; }
 @media (max-width: 760px) { .workspace-controls { gap: 12px; margin-top: 20px; }.workspace-controls .saved-datasets { width: 100%; } }
 @media (max-width: 480px) { .theme-toggle { width: 34px; padding: 0; }.theme-toggle span { display: none; }.policy-form-grid { grid-template-columns: 1fr; }.policy-library-controls, .policy-add-category { align-items: stretch; flex-direction: column; }.policy-rule-summary p { flex-direction: column; gap: 5px; }.policy-library { padding: 24px 18px; }.policy-category-editor { padding: 14px; } }
+
+/* Each workspace section has its own view; mounted panels preserve drafts. */
+.workspace-tabs { gap: 0; margin-top: 24px; min-width: 0; }
+.workspace-tab-list { width: 100%; height: auto !important; justify-content: flex-start; gap: 22px; padding: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; overflow-x: auto; }
+.workspace-tab-list [role="tab"] { flex: 0 0 auto; height: auto; padding: 12px 2px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; font-size: 14px; color: var(--subtle); box-shadow: none; }
+.workspace-tab-list [role="tab"][data-state="active"] { color: var(--blue); border-bottom-color: var(--blue); background: transparent; box-shadow: none; }
+.workspace-tabs > [role="tabpanel"] { min-width: 0; }
+.workspace-tabs .reports-section { margin-top: 28px; }
+.workspace-page-heading { padding-top: 28px; }
+.workspace-page-heading h1 { font-family: "Manrope", sans-serif; font-size: 30px; font-weight: 750; letter-spacing: -.8px; margin-bottom: 8px; }
+.workspace-page-heading p { color: var(--subtle); }
+.workspace-tabs .source-panel { margin-top: 24px; }
+@media (max-width: 760px) { .workspace-tab-list { gap: 18px; }.workspace-tab-list [role="tab"] { font-size: 13px; }.workspace-page-heading h1 { font-size: 28px; } }

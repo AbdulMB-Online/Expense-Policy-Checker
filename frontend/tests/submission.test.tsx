@@ -70,8 +70,11 @@ describe("expense submission", () => {
     cleanup();
     vi.mocked(fetch).mockResolvedValue(response(updated()));
     render(<Component user={demoReviewer} />);
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
     await screen.findByRole("button", { name: "View review expense USR-NEW" });
+    await user.click(screen.getByRole("tab", { name: "Claims to review" }));
     expect(screen.getByRole("button", { name: /Test Employee.*flagged/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
     await user.click(screen.getByRole("button", { name: "View review expense USR-NEW" }));
     expect(within(screen.getByRole("dialog")).getByRole("link", { name: /Download receipt: Lunch receipt.pdf/ })).toHaveAttribute("href", "/api/receipts/USR-NEW");
   });
@@ -102,10 +105,12 @@ describe("expense submission", () => {
     await fillForm(user, "20.00");
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Final review is still required.");
+    await user.click(screen.getByRole("tab", { name: "My expenses" }));
     expect(screen.getByRole("button", { name: "View submitted expense USR-NEW" })).toHaveTextContent("Unflagged by active checks");
     cleanup();
     vi.mocked(fetch).mockResolvedValue(response(updated(clean)));
     render(<Component user={demoReviewer} />);
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
     await screen.findByRole("button", { name: "View review expense USR-NEW" });
     expect(screen.getByRole("button", { name: "View review expense USR-NEW" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "View review expense USR-NEW" }));
@@ -235,4 +240,19 @@ describe("expense submission", () => {
     const requests = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/expenses");
     expect((requests[0][1]?.body as FormData).get("request_id")).not.toBe((requests[1][1]?.body as FormData).get("request_id"));
   });
+});
+
+it("keeps an employee draft and receipt when switching to expense history", async () => {
+  const user = userEvent.setup();
+  render(<Component user={employee} />);
+  await openForm(user);
+  await fillForm(user);
+  await user.upload(screen.getByLabelText(/Receipt \(optional\)/), new File(["%PDF-"], "Draft receipt.pdf", { type: "application/pdf" }));
+  await user.click(screen.getByRole("tab", { name: "My expenses" }));
+  expect(screen.queryByRole("form", { name: "Submit an expense" })).not.toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "Submitted expenses" })).toBeVisible();
+  await user.click(screen.getByRole("tab", { name: "Submit expense" }));
+  expect(screen.getByLabelText("Description")).toHaveValue("Client lunch");
+  expect(screen.getByLabelText("Amount (USD)")).toHaveValue("75.00");
+  expect((screen.getByLabelText(/Receipt \(optional\)/) as HTMLInputElement).files?.[0].name).toBe("Draft receipt.pdf");
 });

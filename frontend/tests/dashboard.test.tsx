@@ -19,8 +19,10 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe("dashboard", () => {
   it("loads real API data and shows employee groups", async () => {
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     expect(await screen.findByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
     expect(screen.getByText("Claims checked")).toBeInTheDocument();
+    expect(screen.getByText("Claims checked")).not.toBeVisible();
     expect(screen.queryByRole("form", { name: "Submit an expense" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "User view" })).not.toBeInTheDocument();
     expect(screen.getAllByText("$115.00").length).toBeGreaterThan(0);
@@ -30,6 +32,7 @@ describe("dashboard", () => {
   it("switches to rules and shows every reason in the claim dialog", async () => {
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("tab", { name: "By policy rule" }));
     await user.click(screen.getAllByRole("button", { name: "View expense EXP-005" })[0]);
@@ -43,6 +46,7 @@ describe("dashboard", () => {
   it("requests employee and debounced search filters", async () => {
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.selectOptions(screen.getByLabelText("Filter by employee"), "Alice Morgan");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining("employee=Alice+Morgan"), expect.anything()));
@@ -53,7 +57,9 @@ describe("dashboard", () => {
   it("expands rejected rows and policy details", async () => {
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
+    await user.click(screen.getByRole("tab", { name: "Input issues" }));
     await user.click(screen.getByRole("button", { name: /A few records need fixing/ }));
     expect(screen.getByText("employee: required field is empty")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "View active policy" }));
@@ -66,6 +72,7 @@ describe("dashboard", () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error("API offline"));
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("API offline");
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
@@ -74,6 +81,7 @@ describe("dashboard", () => {
   it("shows an empty search result without inventing claims", async () => {
     vi.mocked(fetch).mockResolvedValue(response({ ...fixture, summary: { ...fixture.summary, flagged_count: 0 }, groups: { employee: [], rule: [] } }) as Response);
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     expect(await screen.findByText("No flags from the active checks")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View expense EXP-005" })).not.toBeInTheDocument();
   });
@@ -89,6 +97,7 @@ describe("dashboard", () => {
       ? { ok: true, blob: async () => new Blob(["Expense report"]) } as Response
       : response() as Response);
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("button", { name: "Export report" }));
     await waitFor(() => expect(clicked).toHaveBeenCalled());
@@ -98,6 +107,7 @@ describe("dashboard", () => {
   it("collapses groups and restores the claim rows", async () => {
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     const group = await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(group);
     expect(group).toHaveAttribute("aria-expanded", "false");
@@ -109,10 +119,11 @@ describe("dashboard", () => {
   it("opens the responsive navigation and closes it after a destination", async () => {
     const user = userEvent.setup();
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
-    await user.click(screen.getByRole("link", { name: "Reports" }));
+    await user.click(screen.getByRole("button", { name: "Import files" }));
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -125,6 +136,7 @@ describe("dashboard", () => {
       claims,
     }) as Response);
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     expect(screen.queryByRole("button", { name: "View expense LONG-5" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show 2 more claims" }));
@@ -145,7 +157,9 @@ describe("dashboard", () => {
       return response(url.includes("/upload") || url.includes("dataset=review-token") ? uploaded : fixture) as Response;
     });
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
+    await user.click(screen.getByRole("tab", { name: "Import files" }));
     expect(screen.getByRole("button", { name: "Check selected files" })).toBeDisabled();
     await user.upload(screen.getByLabelText(/Expense CSV/), new File(["claims"], "October claims.csv", { type: "text/csv" }));
     await user.upload(screen.getByLabelText(/Policy JSON/), new File(["{}"], "Finance rules 2026.json", { type: "application/json" }));
@@ -156,18 +170,23 @@ describe("dashboard", () => {
     const files = posted[1]?.body as FormData;
     expect((files.get("expenses") as File).name).toBe("October claims.csv");
     expect((files.get("policy") as File).name).toBe("Finance rules 2026.json");
+    await user.click(screen.getByRole("tab", { name: "Overview" }));
     await waitFor(() => expect(screen.getByRole("button", { name: /Refresh report/ })).toBeEnabled());
+    await user.click(screen.getByRole("tab", { name: "Claims to review" }));
     await user.selectOptions(screen.getByLabelText("Filter by employee"), "Alice Morgan");
     await user.type(screen.getByLabelText("Search claims"), "EXP-005");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/report?employee=Alice+Morgan&search=EXP-005&dataset=review-token", expect.anything()));
+    await user.click(screen.getByRole("tab", { name: "Overview" }));
     await waitFor(() => expect(screen.getByRole("button", { name: /Refresh report/ })).toBeEnabled());
     const calls = vi.mocked(fetch).mock.calls.length;
     await user.click(screen.getByRole("button", { name: /Refresh report/ }));
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(calls));
+    await user.click(screen.getByRole("tab", { name: "Claims to review" }));
     await user.click(screen.getByRole("tab", { name: "By policy rule" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Export report" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "Export report" }));
     expect(fetch).toHaveBeenCalledWith("/api/report/download?employee=Alice+Morgan&search=EXP-005&dataset=review-token&group_by=rule");
+    await user.click(screen.getByRole("tab", { name: "Import files" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Use sample files" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "Use sample files" }));
     expect(await screen.findByText("Stored sample files")).toBeInTheDocument();
@@ -181,7 +200,9 @@ describe("dashboard", () => {
     const uploaded = { ...fixture, dataset_id: "policy-context", sources: { ...fixture.sources, policy: "New limits.json" } };
     vi.mocked(fetch).mockImplementation(async (input) => response(String(input).includes("/upload") || String(input).includes("dataset=") ? uploaded : fixture) as Response);
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
+    await user.click(screen.getByRole("tab", { name: "Import files" }));
     await user.upload(screen.getByLabelText(/Policy JSON/), new File(["{}"], "New limits.json", { type: "application/json" }));
     await user.click(screen.getByRole("button", { name: "Check selected files" }));
     await screen.findByText("Uploaded files active");
@@ -200,11 +221,13 @@ describe("dashboard", () => {
     vi.mocked(fetch).mockImplementation(async (input) => String(input).includes("/upload")
       ? { ok: false, json: async () => ({ detail: "Bad.json: missing categories" }) } as Response : response() as Response);
     render(<Component user={demoReviewer} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
+    await user.click(screen.getByRole("tab", { name: "Import files" }));
     await user.upload(screen.getByLabelText(/Policy JSON/), new File(["{}"], "Bad.json", { type: "application/json" }));
     await user.click(screen.getByRole("button", { name: "Check selected files" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Bad.json: missing categories");
-    expect(screen.getByRole("button", { name: /Alice Morgan/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Alice Morgan/ })).not.toBeInTheDocument();
     expect(screen.getByText("Stored sample files")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check selected files" })).toBeEnabled();
     expect((screen.getByLabelText(/Policy JSON/) as HTMLInputElement).files?.[0].name).toBe("Bad.json");
@@ -214,4 +237,28 @@ describe("dashboard", () => {
 it("formats large monetary strings without losing cents", () => {
   expect(money("999999999999999999999999999999.99", "USD")).toBe("$999,999,999,999,999,999,999,999,999,999.99");
   expect(money("0.10", "EUR")).toBe("€0.10");
+});
+
+it("separates workspace panels and keeps sidebar, summary action, and keyboard tabs in sync", async () => {
+  const user = userEvent.setup();
+  render(<Component user={demoReviewer} />);
+  await screen.findByText("Claims checked");
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.queryByRole("button", { name: "Export report" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Check selected files" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /Review flagged claims/ }));
+  expect(screen.getByRole("tab", { name: "Claims to review" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("button", { name: "Claims to review" })).toHaveAttribute("aria-current", "page");
+  await user.selectOptions(screen.getByLabelText("Filter by employee"), "Alice Morgan");
+  await user.click(screen.getByRole("button", { name: "Import files" }));
+  const file = new File(["claims"], "Draft.csv", { type: "text/csv" });
+  await user.upload(screen.getByLabelText(/Expense CSV/), file);
+  screen.getByRole("tab", { name: "Import files" }).focus();
+  await user.keyboard("{ArrowRight}");
+  expect(screen.getByRole("tab", { name: "Input issues" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.queryByRole("button", { name: "Check selected files" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Import files" }));
+  expect((screen.getByLabelText(/Expense CSV/) as HTMLInputElement).files?.[0].name).toBe("Draft.csv");
+  await user.click(screen.getByRole("tab", { name: "Claims to review" }));
+  expect(screen.getByLabelText("Filter by employee")).toHaveValue("Alice Morgan");
 });
