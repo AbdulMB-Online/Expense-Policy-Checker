@@ -1,4 +1,7 @@
 export type Grouping = "employee" | "rule";
+export interface DemoUser { id: string; name: string; role: "employee" | "reviewer" }
+export type ReviewStatus = "submitted" | "approved" | "rejected" | "changes_requested";
+export interface ReviewEvent { revision: number; decision: ReviewStatus; comment: string; reviewer: string; created_at: string; run_id: string }
 export interface Violation { rule_id: string; rule_name: string; reason: string }
 export interface Claim {
   id: string; employee: string; date: string; category: string; amount: string;
@@ -6,6 +9,7 @@ export interface Claim {
   violations: Violation[];
   submission_date: string; nights: number | null; origin: "file" | "submission";
   receipt: { name: string; download_url: string } | null;
+  owner_id: string | null; revision_id: string; revision: number; review_status: ReviewStatus;
 }
 export interface ReportGroup { id: string; name: string; total_amount: string; claims: Claim[] }
 export interface Summary {
@@ -18,6 +22,7 @@ export interface CategoryPolicy {
   nights_required?: boolean;
 }
 export interface Report {
+  run_id: string; current_user: DemoUser;
   generated_at: string; currency: string;
   dataset_id: string | null;
   sources: { expenses: string; policy: string };
@@ -26,7 +31,20 @@ export interface Report {
   submissions: Claim[];
   groups: Record<Grouping, ReportGroup[]>;
   errors: { line_number: number; expense_id: string | null; reasons: string[] }[];
-  policy: { name: string; version: string; categories: Record<string, CategoryPolicy>; active_rules: string[] };
+  policy: { id?: string; name: string; version: string; categories: Record<string, CategoryPolicy>; active_rules: string[] };
+}
+
+export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    throw new Error(typeof problem.detail === "string" ? problem.detail : "The request failed. Please retry.");
+  }
+  return response.json();
+}
+
+export function postJson<T>(url: string, body: unknown): Promise<T> {
+  return apiJson(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
 
 /** Format API decimal strings without converting monetary values to floats. */

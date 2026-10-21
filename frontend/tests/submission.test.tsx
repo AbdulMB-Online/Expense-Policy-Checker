@@ -1,10 +1,18 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Component from "@/components/ui/saa-s-template";
 import { UserExpenseView } from "@/components/user-expense-view";
 import type { Claim, Report } from "@/lib/report";
-import { alice, fixture } from "./fixture";
+import { alice, fixture, demoReviewer } from "./fixture";
+
+vi.mock("@/lib/report", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/report")>();
+  return { ...actual, apiJson: (url: string, options?: RequestInit) => url === "/api/datasets" || url.includes("/history")
+    ? Promise.resolve([]) : actual.apiJson(url, options) };
+});
+
+const employee = { id: "employee-test", name: "Test Employee", role: "employee" as const };
 
 const saved: Claim = {
   ...alice, id: "USR-NEW", employee: "Test Employee", origin: "submission", receipt_attached: true,
@@ -21,17 +29,16 @@ function updated(claim: Claim = saved): Report {
 
 function response(data: unknown) { return { ok: true, json: async () => data } as Response; }
 
-beforeEach(() => { vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(fixture))); });
+beforeEach(() => { localStorage.clear(); vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(fixture))); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 async function openForm(user: ReturnType<typeof userEvent.setup>) {
-  await screen.findByRole("button", { name: /Alice Morgan/ });
-  await user.click(screen.getByRole("button", { name: "User view" }));
+  await screen.findByLabelText("Employee name");
   return screen.getByRole("form", { name: "Submit an expense" });
 }
 
 async function fillForm(user: ReturnType<typeof userEvent.setup>, amount = "75.00") {
-  await user.type(screen.getByLabelText("Employee name"), "Test Employee");
+  expect(screen.getByLabelText("Employee name")).toHaveValue("Test Employee");
   await user.type(screen.getByLabelText("Amount (USD)"), amount);
   await user.type(screen.getByLabelText("Description"), "Client lunch");
 }
@@ -41,7 +48,7 @@ describe("expense submission", () => {
     const user = userEvent.setup();
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/expenses"
       ? response({ claim: saved, report: updated() }) : response(fixture));
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     const receipt = new File(["%PDF-1.4 receipt"], "Lunch receipt.pdf", { type: "application/pdf" });
@@ -60,9 +67,15 @@ describe("expense submission", () => {
     expect((posted.get("receipt") as File).name).toBe(receipt.name);
     expect(posted.has("receipt_attached")).toBe(false);
     expect(screen.getByLabelText("Amount (USD)")).toHaveValue("");
-    await user.click(screen.getByRole("button", { name: "View reviewer report" }));
+    cleanup();
+    vi.mocked(fetch).mockResolvedValue(response(updated()));
+    render(<Component user={demoReviewer} />);
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
+    await screen.findByRole("button", { name: "View review expense USR-NEW" });
+    await user.click(screen.getByRole("tab", { name: "Claims to review" }));
     expect(screen.getByRole("button", { name: /Test Employee.*flagged/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "View submitted expense USR-NEW" }));
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
+    await user.click(screen.getByRole("button", { name: "View review expense USR-NEW" }));
     expect(within(screen.getByRole("dialog")).getByRole("link", { name: /Download receipt: Lunch receipt.pdf/ })).toHaveAttribute("href", "/api/receipts/USR-NEW");
   });
 
@@ -71,7 +84,7 @@ describe("expense submission", () => {
     const missing = { ...saved, receipt: null, receipt_attached: false, violations: alice.violations };
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/expenses"
       ? response({ claim: missing, report: updated(missing) }) : response(fixture));
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
@@ -87,15 +100,20 @@ describe("expense submission", () => {
     const clean = { ...saved, amount: "20.00", status: "unflagged" as const, violations: [] };
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/expenses"
       ? response({ claim: clean, report: updated(clean) }) : response(fixture));
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user, "20.00");
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Final review is still required.");
+    await user.click(screen.getByRole("tab", { name: "My expenses" }));
     expect(screen.getByRole("button", { name: "View submitted expense USR-NEW" })).toHaveTextContent("Unflagged by active checks");
-    await user.click(screen.getByRole("button", { name: "View reviewer report" }));
-    expect(screen.getByRole("button", { name: "View submitted expense USR-NEW" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "View submitted expense USR-NEW" }));
+    cleanup();
+    vi.mocked(fetch).mockResolvedValue(response(updated(clean)));
+    render(<Component user={demoReviewer} />);
+    await user.click(screen.getByRole("tab", { name: "All expenses" }));
+    await screen.findByRole("button", { name: "View review expense USR-NEW" });
+    expect(screen.getByRole("button", { name: "View review expense USR-NEW" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "View review expense USR-NEW" }));
     expect(within(screen.getByRole("dialog")).getByRole("heading", { name: "No violations detected by active checks" })).toBeInTheDocument();
   });
 
@@ -107,7 +125,7 @@ describe("expense submission", () => {
       posts += 1;
       return posts === 1 ? { ok: false, json: async () => ({ detail: "Storage unavailable. Please retry." }) } as Response : response({ claim: saved, report: updated() });
     });
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     await user.upload(screen.getByLabelText(/Receipt \(optional\)/), new File(["%PDF-"], "Lunch receipt.pdf", { type: "application/pdf" }));
@@ -125,7 +143,7 @@ describe("expense submission", () => {
     const user = userEvent.setup();
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/expenses"
       ? { ok: false, json: async () => ({ detail: { message: "Correct the amount.", fields: { amount: "Expected a nonnegative decimal." } } }) } as Response : response(fixture));
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
@@ -141,7 +159,7 @@ describe("expense submission", () => {
     const custom: Report = { ...fixture, dataset_id: "custom-source", policy: { ...fixture.policy, categories: { ...fixture.policy.categories, hotel: { max_amount: "200.00", limit_basis: "per_night", nights_required: true, receipt: { mode: "always" } } } } };
     const onSaved = vi.fn();
     vi.mocked(fetch).mockResolvedValue(response({ claim: saved, report: custom }));
-    render(<UserExpenseView report={custom} busy={false} onBusy={vi.fn()} onSaved={onSaved} onReview={vi.fn()} onClaim={vi.fn()} />);
+    render(<UserExpenseView user={employee} report={custom} busy={false} onBusy={vi.fn()} onSaved={onSaved} onClaim={vi.fn()} />);
     await waitFor(() => expect(screen.getByLabelText("Category")).toHaveValue("meals"));
     await fillForm(user, "400.00");
     await user.selectOptions(screen.getByLabelText("Category"), "hotel");
@@ -157,15 +175,14 @@ describe("expense submission", () => {
     expect(files.get("dataset")).toBe("custom-source");
   });
 
-  it("prevents repeated clicks while saving and retains the draft when changing views", async () => {
+  it("prevents repeated clicks while saving and retains the employee draft", async () => {
     const user = userEvent.setup();
     let finish!: (value: Response) => void;
     vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/expenses" ? new Promise<Response>((resolve) => { finish = resolve; }) : response(fixture));
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
-    await user.click(screen.getByRole("link", { name: "Reviewer view" }));
-    await user.click(screen.getByRole("button", { name: "User view" }));
+    expect(screen.queryByRole("link", { name: "Expense review" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toHaveValue("Client lunch");
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
     expect(within(form).getByRole("button", { name: "Submitting…" })).toBeDisabled();
@@ -178,7 +195,7 @@ describe("expense submission", () => {
 
   it("can remove a receipt and rejects oversized files before posting", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     const input = screen.getByLabelText(/Receipt \(optional\)/);
@@ -193,7 +210,7 @@ describe("expense submission", () => {
 
   it("native required fields prevent an empty submission", async () => {
     const user = userEvent.setup();
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
     expect(vi.mocked(fetch).mock.calls.some(([url]) => url === "/api/expenses")).toBe(false);
@@ -209,7 +226,7 @@ describe("expense submission", () => {
       posts += 1;
       return posts === 1 ? { ok: false, status: 409, json: async () => ({ detail: "This submission was already saved with different details. Start a new expense." }) } as Response : response({ claim: saved, report: updated() });
     });
-    render(<Component />);
+    render(<Component user={employee} />);
     const form = await openForm(user);
     await fillForm(user);
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
@@ -223,4 +240,19 @@ describe("expense submission", () => {
     const requests = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/expenses");
     expect((requests[0][1]?.body as FormData).get("request_id")).not.toBe((requests[1][1]?.body as FormData).get("request_id"));
   });
+});
+
+it("keeps an employee draft and receipt when switching to expense history", async () => {
+  const user = userEvent.setup();
+  render(<Component user={employee} />);
+  await openForm(user);
+  await fillForm(user);
+  await user.upload(screen.getByLabelText(/Receipt \(optional\)/), new File(["%PDF-"], "Draft receipt.pdf", { type: "application/pdf" }));
+  await user.click(screen.getByRole("tab", { name: "My expenses" }));
+  expect(screen.queryByRole("form", { name: "Submit an expense" })).not.toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "Submitted expenses" })).toBeVisible();
+  await user.click(screen.getByRole("tab", { name: "Submit expense" }));
+  expect(screen.getByLabelText("Description")).toHaveValue("Client lunch");
+  expect(screen.getByLabelText("Amount (USD)")).toHaveValue("75.00");
+  expect((screen.getByLabelText(/Receipt \(optional\)/) as HTMLInputElement).files?.[0].name).toBe("Draft receipt.pdf");
 });

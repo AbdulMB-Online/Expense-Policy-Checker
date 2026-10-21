@@ -4,9 +4,9 @@ import sys
 
 import pytest
 
-from loader.expense_loader import FIELDS
-from scripts.export_expenses import export_expenses
-from scripts.sample_data import generate_sample
+from backend.loader.expense_loader import FIELDS
+from backend.scripts.export_expenses import export_expenses
+from backend.scripts.sample_data import generate_sample
 
 
 def test_exports_validated_records_and_errors(tmp_path):
@@ -78,7 +78,7 @@ def test_invalid_input_leaves_output_untouched(tmp_path):
 def test_export_cli(tmp_path):
     source = generate_sample(tmp_path / "sample.csv")
     output = tmp_path / "out.json"
-    command = [sys.executable, "-m", "scripts.export_expenses", "--input", str(source), "--output", str(output)]
+    command = [sys.executable, "-m", "backend.scripts.export_expenses", "--input", str(source), "--output", str(output)]
     success = subprocess.run(command, capture_output=True, text=True)
     assert success.returncode == 0
     assert len(json.loads(output.read_text())["expenses"]) == 72

@@ -1,0 +1,96 @@
+/* A compact team directory. All colors are local to this screen. */
+.sign-in-screen {
+  --signin-canvas: #edf1f7;
+  --signin-paper: #fff;
+  --signin-field: #f5f7fb;
+  --signin-ink: #20314b;
+  --signin-muted: #687992;
+  --signin-line: #e1e7ef;
+  --signin-hover: #f3f6fc;
+  --signin-selected: #eef3ff;
+  --signin-accent: #345fce;
+  min-height: 100svh;
+  padding: 30px 40px 24px;
+  background: var(--signin-canvas);
+  color: var(--signin-ink);
+  display: flex;
+  flex-direction: column;
+}
+.dark .sign-in-screen {
+  --signin-canvas: #10151f;
+  --signin-paper: #19212e;
+  --signin-field: #121a27;
+  --signin-ink: #e9eef8;
+  --signin-muted: #9aaac2;
+  --signin-line: #2b3649;
+  --signin-hover: #202d41;
+  --signin-selected: #23385b;
+  --signin-accent: #a7c3ff;
+}
+.sign-in-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(1120px, 100%); margin: 0 auto 35px; }
+.sign-in-top .brand { font-size: 18px; letter-spacing: -.7px; }
+.sign-in-top .brand-mark { width: 31px; height: 33px; }
+.sign-in-top .theme-toggle { border: 0; }
+.sign-in-card { width: min(620px, 100%); margin: auto; padding: 33px 36px 0; border: 1px solid var(--signin-line); border-radius: 20px; background: var(--signin-paper); box-shadow: 0 24px 70px #172c4c0d; }
+.sign-in-heading { position: relative; padding-right: 58px; margin-bottom: 29px; }
+.sign-in-heading h1 { font-family: "Manrope", sans-serif; font-size: clamp(28px, 4vw, 34px); line-height: 1.25; font-weight: 650; letter-spacing: -1.3px; margin: 0 0 9px; }
+.sign-in-heading p { font-size: 14px; line-height: 1.6; color: var(--signin-muted); margin: 0; }
+.sign-in-emblem { position: absolute; right: 0; top: 0; width: 44px; height: 51px; background: #dce7ff; color: #3561c4; border-radius: 9px 9px 17px 3px; display: grid; place-items: center; transform: rotate(-8deg); }
+.dark .sign-in-emblem { background: #293d60; color: #afccff; }
+.account-directory-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.account-directory-heading h2 { font-size: 13px; font-weight: 600; margin: 0; }
+.account-directory-heading > span { color: var(--signin-muted); font-size: 11px; }
+.account-search { display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 13px; background: var(--signin-field); border: 1px solid var(--signin-line); border-radius: 8px; color: var(--signin-muted); }
+.account-search input { min-width: 0; flex: 1; height: 100%; background: transparent; border: 0; font-size: 14px; outline: none; color: var(--signin-ink); }
+.account-search input::placeholder { color: var(--signin-muted); }
+.account-search:focus-within { outline: 2px solid var(--signin-accent); outline-offset: 2px; }
+.account-search button { padding: 6px; display: grid; place-items: center; border-radius: 4px; }
+.account-search button:hover { background: var(--signin-hover); }
+.account-directory { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 9px; max-height: 310px; min-height: 168px; overflow-y: auto; overscroll-behavior: contain; margin: 17px -4px 20px; padding: 4px; border: 0; scrollbar-width: thin; scrollbar-color: #77879f55 transparent; }
+.account-directory:disabled { opacity: .6; }
+.person-tile { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 67px; padding: 12px 10px; border: 1px solid var(--signin-line); border-radius: 9px; cursor: pointer; }
+.person-tile:hover { background: var(--signin-hover); }
+.person-tile.person-selected { background: var(--signin-selected); border-color: var(--signin-accent); }
+.person-tile:has(input:focus-visible) { outline: 2px solid var(--signin-accent); outline-offset: 2px; }
+.person-radio { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.person-avatar { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; font-size: 11px; font-weight: 650; letter-spacing: .2px; background: #e2eaf8; color: #486b9e; }
+.person-color-1 { background: #e3ede8; color: #52745e; }
+.person-color-2 { background: #ede7f6; color: #82639d; }
+.person-color-3 { background: #f5eadb; color: #947046; }
+.dark .person-color-0 { background: #2c3d56; color: #bdd0ed; }
+.dark .person-color-1 { background: #2b403c; color: #b0d5c7; }
+.dark .person-color-2 { background: #3b314c; color: #d4bee9; }
+.dark .person-color-3 { background: #463c2e; color: #dfc4a0; }
+.person-name { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.person-name strong { color: var(--signin-ink); font-weight: 550; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+.person-name small { color: var(--signin-muted); font-size: 11px; line-height: 1.2; }
+.person-check { display: grid; place-items: center; margin-left: auto; flex-shrink: 0; width: 15px; height: 15px; border: 1px solid var(--signin-line); border-radius: 50%; }
+.person-selected .person-check { background: #4778e4; border-color: #4778e4; color: #fff; }
+.account-directory-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 10px; color: var(--signin-muted); font-size: 13px; text-align: center; }
+.account-directory-empty strong { color: var(--signin-ink); font-weight: 550; }
+.account-directory-empty button { margin-top: 5px; color: var(--signin-accent); text-decoration: underline; text-underline-offset: 3px; }
+.sign-in-action { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 -36px; padding: 22px 36px; border-top: 1px solid var(--signin-line); border-radius: 0 0 20px 20px; }
+.sign-in-action > button { height: 43px; min-width: 135px; border-radius: 8px; gap: 20px; background: #386ade; color: #fff; font-size: 14px; box-shadow: inset 0 1px 0 #ffffff15; }
+.sign-in-action > button:hover { background: #4779ec; }
+.sign-in-action > button:disabled { background: var(--signin-field); border: 1px solid var(--signin-line); color: var(--signin-muted); opacity: 1; }
+.sign-in-selection { display: flex; align-items: center; gap: 10px; color: var(--signin-muted); font-size: 12px; min-width: 0; }
+.sign-in-selection strong { display: block; font-size: 13px; font-weight: 600; color: var(--signin-ink); margin-top: 3px; }
+.sign-in-selection small { font-size: 11px; }
+.selection-dot { width: 6px; height: 6px; border-radius: 50%; background: #4778e4; flex-shrink: 0; }
+.sign-in-error { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 7px; background: #b6374510; color: var(--destructive); font-size: 13px; margin-bottom: 18px; }
+.sign-in-error p { margin: 0; }
+.sign-in-error button { text-decoration: underline; white-space: nowrap; }
+.sign-in-footer { display: flex; justify-content: space-between; gap: 15px; width: min(620px, 100%); margin: 25px auto 0; color: var(--signin-muted); font-size: 11px; }
+.source-saved-files { padding-bottom: 22px; margin-bottom: 23px; border-bottom: 1px solid var(--border); }
+.source-saved-files .saved-datasets { margin: 0; justify-content: flex-start; gap: 14px; flex-wrap: wrap; color: var(--ink); }
+.source-saved-files .saved-datasets select { max-width: 100%; width: min(440px, 100%); }
+.source-saved-files p { margin: 8px 0 0; color: var(--subtle); font-size: 12px; }
+@media (max-width: 600px) {
+  .sign-in-screen { padding: 22px 18px 20px; }
+  .sign-in-top { margin-bottom: 28px; }.sign-in-top .brand { font-size: 16px; }
+  .sign-in-card { padding: 27px 23px 0; border-radius: 16px; }
+  .sign-in-heading { padding-right: 45px; margin-bottom: 25px; }.sign-in-heading h1 { font-size: 28px; }.sign-in-heading p { font-size: 13px; }.sign-in-emblem { width: 34px; height: 40px; }.sign-in-emblem svg { width: 23px; }
+  .account-directory { grid-template-columns: 1fr; max-height: 300px; gap: 8px; }.person-tile { min-height: 63px; padding: 11px 13px; }.person-avatar { width: 35px; height: 35px; }.person-name strong { font-size: 14px; }
+  .sign-in-action { margin: 0 -23px; padding: 20px 23px; }.sign-in-action > button { min-width: 100px; gap: 12px; }.sign-in-footer { font-size: 10px; }.source-saved-files .saved-datasets { align-items: stretch; flex-direction: column; gap: 8px; }
+}
+@media (max-width: 360px) { .sign-in-screen { padding: 18px 12px; }.sign-in-card { padding: 23px 18px 0; }.sign-in-action { margin: 0 -18px; padding: 18px; }.sign-in-selection { font-size: 11px; }.sign-in-selection strong { font-size: 12px; } }

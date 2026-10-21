@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from loader.expense_loader import Expense, LoadError, load_expenses
-from loader.policy_loader import load_policy
-from reporting.violation_report import build_report, group_report, render_report
-from rules.base import PolicyViolation
-from rules.engine import RulesEngine
+from backend.loader.expense_loader import Expense, LoadError, load_expenses
+from backend.loader.policy_loader import load_policy
+from backend.reporting.violation_report import build_report, group_report, render_report
+from backend.rules.base import PolicyViolation
+from backend.rules.engine import RulesEngine
 
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from loader.expense_loader import FIELDS, load_expenses
-from loader.policy_loader import load_policy
-from rules.engine import RulesEngine
-from scripts.export_policy_results import export_policy_results
-from scripts.export_expenses import export_expenses
+from backend.loader.expense_loader import FIELDS, load_expenses
+from backend.loader.policy_loader import load_policy
+from backend.rules.engine import RulesEngine
+from backend.scripts.export_policy_results import export_policy_results
+from backend.scripts.export_expenses import export_expenses
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,7 +60,7 @@ def test_exports_engine_results_summary_and_loader_errors(tmp_path):
 def test_cli_writes_output_without_replacing_the_expense_export(tmp_path):
     output = tmp_path / "policy_check_results.json"
     command = [
-        sys.executable, "-m", "scripts.export_policy_results",
+        sys.executable, "-m", "backend.scripts.export_policy_results",
         "--expenses", "data/expenses/sample_expenses.csv",
         "--policy", "data/policy/policy.json",
         "--output", str(output),

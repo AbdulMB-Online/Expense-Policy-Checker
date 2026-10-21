@@ -8,9 +8,10 @@ import sqlite3
 
 import pytest
 
-from database.models import Receipt, SavedExpense
-from database.submissions import ReceiptNotFoundError, StorageError, SubmissionConflictError, SubmissionStore
-from loader.expense_loader import Expense
+from backend.database.models import Receipt, SavedExpense
+from backend.database.errors import ReceiptNotFoundError, StorageError, SubmissionConflictError
+from backend.database.submissions import SubmissionStore
+from backend.loader.expense_loader import Expense
 
 
 @pytest.fixture

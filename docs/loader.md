@@ -7,14 +7,14 @@ to expenses. Runtime code uses only the Python standard library.
 Run the commands below from the repository root.
 
 ```sh
-python3 -m scripts.sample_data --output artifacts/sample_expenses.csv
-python3 -m scripts.sample_data --output /tmp/expenses.csv --seed 42
+python3 -m backend.scripts.sample_data --output artifacts/sample_expenses.csv
+python3 -m backend.scripts.sample_data --output /tmp/expenses.csv --seed 42
 ```
 
 Existing files are protected; use `--force` to overwrite. Identical arguments produce identical data.
 
 ```python
-from loader.expense_loader import load_expenses
+from backend.loader.expense_loader import load_expenses
 
 result = load_expenses("data/expenses/sample_expenses.csv")
 for expense in result.expenses:
@@ -28,15 +28,15 @@ for error in result.errors:
 Run from the repository root:
 
 ```sh
-python3 -m scripts.export_expenses --input data/expenses/sample_expenses.csv --output data/out/sample_expenses.json
-python3 -m scripts.export_policy --input data/policy/policy.json --output data/out/policy.json
+python3 -m backend.scripts.export_expenses --input data/expenses/sample_expenses.csv --output data/out/sample_expenses.json
+python3 -m backend.scripts.export_policy --input data/policy/policy.json --output data/out/policy.json
 ```
 
 The expense exporter calls `load_expenses` and writes an object with `expenses`
 (validated records) and `errors` (rejected row IDs, line numbers, and reasons). The
 default sample produces 72 expense records and 28 errors. Dates use ISO strings,
 amounts use decimal strings to preserve precision, and receipts use JSON booleans.
-Both expense paths above are defaults, so `python3 -m scripts.export_expenses` also works.
+Both expense paths above are defaults, so `python3 -m backend.scripts.export_expenses` also works.
 
 The policy exporter calls `load_policy` and writes the validated configuration as
 pretty-printed JSON. Monetary limits remain decimal strings. Defaults are
@@ -81,7 +81,7 @@ in loader validation.
 ## Policy loading and responsibility
 
 ```python
-from loader.policy_loader import load_policy
+from backend.loader.policy_loader import load_policy
 
 policy = load_policy("data/policy/policy.json")
 # Select the alternative policy with the same loader:
