@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportAssistant } from "@/components/report-assistant";
 import { SourceFiles } from "@/components/source-files";
 import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-view";
 import { categoryLabel, dateLabel, money, readReport, reportQuery, type Claim, type Grouping, type Report, type ReportGroup } from "@/lib/report";
@@ -231,6 +232,7 @@ export default function Component() {
       <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => document.getElementById("reports")?.scrollIntoView({ behavior: "smooth" })} />
       <SourceFiles report={report} busy={loading || exporting || submitting} onReport={changeSource} onSamples={() => changeSource(null)} onBusy={setUploading} />
       <Metrics report={error ? null : report} />
+      {report && !pending && !error && <ReportAssistant report={report} employee={employee} search={debouncedSearch} onClaim={setSelectedClaim} />}
       <section className="reports-section" id="reports" aria-busy={pending}>
         <div className="section-heading"><div><div className="section-eyebrow">THE EXCEPTIONS, IN FOCUS</div><h2>Claims to review <span className="heading-count">{report?.overview.flagged_count ?? "—"}</span></h2><p>A little context makes the next decision clearer.</p></div>
           <Button variant="outline" className="export-button" disabled={!report || pending || !!error || exporting} onClick={download}>{exporting ? <Loader2 size={14} className="spin" /> : <ArrowDownToLine size={14} />}Export report</Button>

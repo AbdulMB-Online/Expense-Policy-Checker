@@ -161,3 +161,66 @@ The decorative office image is stored locally in `public/office.jpg` from
 Fonts use Google Fonts with system fallbacks. The interface becomes a single
 column on phones, uses a collapsible navigation menu, stacks claim information,
 and honors reduced-motion preferences.
+
+## Report assistant
+
+From the repository root, install the web dependencies and copy the key template:
+
+```bash
+.venv/bin/python -m pip install -r requirements-web.txt
+cp .env.example .env
+```
+
+For Azure AI Foundry, fill in the local `.env` (do not overwrite an existing file
+with keys):
+
+```dotenv
+LLM_PROVIDER=azure_foundry
+LLM_API=chat_completions
+AZURE_OPENAI_API_KEY=your-key
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=your-deployment-name
+```
+
+Use your resource's endpoint and the deployment **name** shown in Foundry. The
+endpoint may also be `https://your-resource.services.ai.azure.com`, and an
+`/openai/v1/` suffix is accepted. Use `LLM_API=chat_completions` when your deployment example uses
+`client.chat.completions.create` (such as the supplied grok-4.7 example). This
+uses `/openai/v1/chat/completions` and Bearer key authentication, matching that
+example. Use `LLM_API=responses` for Responses-compatible deployments; that mode
+uses `/openai/v1/responses` with Azure api-key authentication. Neither v1 route
+requires an API version. Supply the resource base URL, not a project URL or a
+URL ending in chat/completions. See [Microsoft's endpoint guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/endpoints).
+
+For direct OpenAI instead, set `LLM_PROVIDER=openai`, `OPENAI_API_KEY`, and
+optionally `OPENAI_MODEL` (default `gpt-5.5`). Server environment variables take
+precedence over `.env`. Restart the API server after changing configuration:
+
+```bash
+.venv/bin/python -m uvicorn api.app:app --host 127.0.0.1 --port 8000
+```
+
+Build the frontend with `npm run build` from `frontend/`, or run the Vite dev
+server as described above. In Reviewer view, choose **Ask about this report**.
+Ask about priorities, individual claim IDs, policy rules, employee/category
+comparisons, or monthly patterns. Follow-up questions retain the conversation.
+Choose **Entire report** or **Current filters**, and use the claim buttons below
+answers to inspect supporting records. **Stop** cancels waiting; **New chat**
+clears the conversation. Closing the dialog, refreshing/changing the report,
+or changing filters/scope starts a new conversation. Chats are not persisted.
+
+The key stays on the server; `.env` is ignored by Git. Without a key, reporting
+and submissions work normally and chat displays setup instructions. Questions,
+chat history, and the selected report's claim details and policy are sent to
+the configured AI provider when you send a question. Receipt files and download links are excluded.
+Responses-mode requests use `store=false` in the
+[Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create).
+AI answers need reviewer verification and cannot approve or edit expenses.
+
+Limits: 4,000 characters per question, 10 answers per chat, 90-second provider
+request timeout, and 300 KB of report context. Larger reports require narrowing
+the employee/search filters and choosing Current filters. Records are never
+silently omitted. Global summary/input errors are labeled separately from
+filtered claims. Amounts and employee/category/month totals are calculated in
+Python with decimal arithmetic before sending context. No live AI request is
+needed for automated tests; the provider boundary is mocked.

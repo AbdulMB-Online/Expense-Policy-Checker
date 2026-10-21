@@ -13,6 +13,7 @@ from fastapi import FastAPI, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from assistant.service import AssistantError, ChatRequest, ReportAssistant
 from api.sources import ReportSource, SourceStore
 from api.submissions import parse_expense, read_receipt, validate_request_id
 from database.submissions import ReceiptNotFoundError, StorageError, SubmissionConflictError, SubmissionStore
@@ -98,6 +99,7 @@ def create_app(project_root: Path | None = None) -> FastAPI:
     """Create an app for the real project or an isolated fixture directory."""
     root = Path(project_root) if project_root is not None else PROJECT_ROOT
     application = FastAPI(title="Expense Policy Checker", version="1.0.0")
+    assistant = ReportAssistant(root)
     sources = SourceStore(root)
     submissions = SubmissionStore(root)
 
@@ -155,6 +157,19 @@ def create_app(project_root: Path | None = None) -> FastAPI:
                 "active_rules": [getattr(rule, "rule_name", type(rule).__name__) for rule in engine.rules],
             },
         }
+
+    @application.get("/api/assistant/status")
+    def assistant_status():
+        return assistant.status()
+
+    @application.post("/api/assistant/chat")
+    def assistant_chat(request: ChatRequest):
+        source = sources.resolve(request.dataset)
+        data = serialize(source, request.employee, request.search, request.dataset)
+        try:
+            return JSONResponse(assistant.answer(data, source.policy, request), headers={"Cache-Control": "no-store"})
+        except AssistantError as error:
+            raise HTTPException(error.status, str(error)) from error
 
     @application.get("/api/report")
     def report_data(
