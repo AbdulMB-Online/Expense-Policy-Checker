@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReportAssistant } from "@/components/report-assistant";
-import { PolicyLibrary } from "@/components/policy-library";
+import { PolicyLibrary, PolicySummary } from "@/components/policy-library";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SourceFiles } from "@/components/source-files";
 import { SubmittedExpenses, UserExpenseView } from "@/components/user-expense-view";
@@ -21,10 +21,12 @@ const reviewerTabs = [
   { id: "expenses", label: "All expenses", icon: ReceiptText },
   { id: "imports", label: "Import files", icon: Upload },
   { id: "issues", label: "Input issues", icon: CircleAlert },
+  { id: "policy", label: "Policy", icon: ShieldCheck },
 ];
 const employeeTabs = [
   { id: "submit", label: "Submit expense", icon: Upload },
   { id: "expenses", label: "My expenses", icon: ReceiptText },
+  { id: "policy", label: "Policy", icon: ShieldCheck },
 ];
 
 function initialsOf(name: string) {
@@ -38,8 +40,8 @@ function Brand({ onHome }: { onHome: () => void }) {
   </a>;
 }
 
-const Navigation = React.memo(function Navigation({ issueCount, openPolicy, activeTab, onTabChange, user, onLogout }: {
-  issueCount: number; openPolicy: () => void; activeTab: string; onTabChange: (tab: string) => void;
+const Navigation = React.memo(function Navigation({ issueCount, activeTab, onTabChange, user, onLogout }: {
+  issueCount: number; activeTab: string; onTabChange: (tab: string) => void;
   user: DemoUser; onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,7 +50,6 @@ const Navigation = React.memo(function Navigation({ issueCount, openPolicy, acti
       <Brand onHome={() => { onTabChange(user.role === "reviewer" ? "overview" : "submit"); setMobileOpen(false); }} />
       <div className={`navigation-links ${mobileOpen ? "is-open" : ""}`}>
         {(user.role === "reviewer" ? reviewerTabs : employeeTabs).map(({ id, label, icon: Icon }) => <button key={id} className={activeTab === id ? "nav-active" : ""} aria-current={activeTab === id ? "page" : undefined} onClick={() => { onTabChange(id); setMobileOpen(false); }}><Icon size={17} />{label}{id === "issues" && issueCount > 0 && <span className="nav-count">{issueCount}</span>}</button>)}
-        <button className="nav-secondary" onClick={() => { openPolicy(); setMobileOpen(false); }}><ShieldCheck size={17} />Policy</button>
       </div>
       <div className="workspace-label">
         <span className="workspace-avatar" aria-hidden="true">{initialsOf(user.name)}</span>
@@ -148,16 +149,6 @@ function ClaimDetails({ claim, report, close, user, onSaved }: { claim: Claim | 
   </DialogContent></Dialog>;
 }
 
-function PolicyDetails({ open, close, report }: { open: boolean; close: () => void; report: Report | null }) {
-  return <Dialog open={open} onOpenChange={(value) => { if (!value) close(); }}><DialogContent className="detail-dialog policy-dialog">
-    <DialogHeader><DialogTitle>{report?.policy.name ?? "Expense policy"}</DialogTitle><DialogDescription>{report ? `Version ${report.policy.version}, amounts in ${report.currency}` : "No policy loaded yet."}</DialogDescription></DialogHeader>
-    {report && <>
-      <div className="policy-categories">{Object.entries(report.policy.categories).map(([name, settings]) => <div key={name}><strong>{categoryLabel(name)}</strong><span>{settings.max_amount === null ? "No limit" : `${money(settings.max_amount, report.currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt always required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, report.currency)}` : "No receipt rule"}</small></span></div>)}</div>
-      <div className="active-checks"><span>Active checks</span>{report.policy.active_rules.map((rule) => <Badge key={rule} variant="outline"><Check size={11} />{rule}</Badge>)}</div>
-    </>}
-  </DialogContent></Dialog>;
-}
-
 export default function Component({ user, onLogout = () => {} }: { user: DemoUser; onLogout?: () => void }) {
   const [activeTab, setActiveTab] = useState(user.role === "reviewer" ? "overview" : "submit");
   const workspaceTabs = user.role === "reviewer" ? reviewerTabs : employeeTabs;
@@ -175,8 +166,6 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [policyOpen, setPolicyOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
@@ -247,7 +236,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
   const clearFilters = () => { setEmployee(""); setSearch(""); };
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <Navigation issueCount={report?.overview.rejected_count ?? 0} openPolicy={() => user.role === "reviewer" ? setLibraryOpen(true) : setPolicyOpen(true)} activeTab={activeTab} onTabChange={setActiveTab} user={user} onLogout={onLogout} />
+    <Navigation issueCount={report?.overview.rejected_count ?? 0} activeTab={activeTab} onTabChange={setActiveTab} user={user} onLogout={onLogout} />
     <main className="dashboard-container" id="main-content">
       <div className="workspace-controls">{user.role === "reviewer" && report && !pending && !error && <ReportAssistant report={report} employee={employee} search={debouncedSearch} onClaim={setSelectedClaim} />}<ThemeToggle /></div>
       {error && <div className="error-banner" role="alert"><CircleAlert size={18} /><div><strong>We couldn't load your report.</strong><p>{error}</p></div><Button variant="outline" onClick={refresh}>Try again</Button></div>}
@@ -256,6 +245,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
         {user.role === "employee" && <>
           <TabsContent value="submit" forceMount hidden={activeTab !== "submit"}><UserExpenseView key={dataset ?? "stored"} user={user} report={report} busy={pending || exporting || !!error} onBusy={setSubmitting} onSaved={changeSource} onClaim={setSelectedClaim} showSubmitted={false} /></TabsContent>
           <TabsContent value="expenses" forceMount hidden={activeTab !== "expenses"}><header className="workspace-page-heading"><h1>My expenses {report && <span className="heading-count">{report.claims.length}</span>}</h1></header>{report && <SubmittedExpenses report={report} onClaim={setSelectedClaim} />}</TabsContent>
+          <TabsContent value="policy"><header className="workspace-page-heading"><h1>{report?.policy.name ?? "Policy"}</h1>{report && <p>Version {report.policy.version}, amounts in {report.currency}</p>}</header>{report && <PolicySummary name={report.policy.name} version={report.policy.version} currency={report.currency} categories={report.policy.categories} activeRules={report.policy.active_rules} />}</TabsContent>
         </>}
         {user.role === "reviewer" && <>
           <TabsContent value="overview" forceMount hidden={activeTab !== "overview"}>
@@ -295,12 +285,11 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
               {issuesOpen && <div className="issues-list">{report?.errors.length ? report.errors.map((issue) => <div className="issue-row" key={issue.line_number}><span className="issue-line">Line {issue.line_number}</span><strong>{issue.expense_id ?? "No ID"}</strong><span>{issue.reasons.join("; ")}</span></div>) : <div className="no-issues"><Check size={15} />Every row was read successfully.</div>}</div>}
             </section>
           </TabsContent>
+          <TabsContent value="policy"><PolicyLibrary report={report} onReport={changeSource} onBusy={setUploading} /></TabsContent>
         </>}
       </Tabs>
-      {user.role === "reviewer" && <footer className="page-footer"><span>{report ? `${report.sources.expenses}, updated ${updatedAt(report)}` : "Connecting…"}</span><button onClick={() => setPolicyOpen(true)}>View active policy</button></footer>}
+      {user.role === "reviewer" && activeTab !== "policy" && <footer className="page-footer"><span>{report ? `${report.sources.expenses}, updated ${updatedAt(report)}` : "Connecting…"}</span><button onClick={() => setActiveTab("policy")}>View active policy</button></footer>}
     </main>
     <ClaimDetails claim={selectedClaim} report={report} close={() => setSelectedClaim(null)} user={user} onSaved={(data) => { changeSource(data); setSelectedClaim(data.claims.find((item) => item.id === selectedClaim?.id) ?? null); }} />
-    {user.role === "reviewer" && <PolicyLibrary open={libraryOpen} close={() => setLibraryOpen(false)} report={report} onReport={changeSource} onBusy={setUploading} />}
-    <PolicyDetails open={policyOpen} report={report} close={() => setPolicyOpen(false)} />
   </div>;
 }

@@ -117,7 +117,6 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .navigation-links button:hover { background: var(--surface-2); color: var(--ink); }
 .navigation-links .nav-active, .navigation-links .nav-active:hover { background: var(--raised); color: var(--ink); box-shadow: var(--lift); }
 .navigation-links .nav-active svg { color: var(--brand); }
-.navigation-links .nav-secondary { margin-top: 18px; }
 .nav-count { margin-left: auto; padding: 0 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag-ink); font-size: 12px; font-weight: 600; line-height: 20px; }
 .workspace-label { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 10px 6px 0 8px; }
 .workspace-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--brand-soft); color: var(--brand-ink); font-size: 12px; font-weight: 600; }
@@ -395,10 +394,12 @@ body > .error-banner { margin: 16px; }
 .active-checks > span:first-child { width: 100%; margin-bottom: 2px; color: var(--subtle); font-size: 13px; }
 .active-checks [data-slot="badge"] { gap: 5px; padding: 3px 10px; border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 12px; font-weight: 500; }
 .active-checks [data-slot="badge"] svg { color: var(--brand); }
-.policy-library[data-slot="dialog-content"] { width: min(680px, calc(100vw - 24px)); max-width: 680px; }
-.policy-library > p[role="status"] { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; color: var(--subtle); }
-.policy-library .error-banner { margin: 16px 0 0; }
-.policy-library-controls { display: flex; align-items: flex-end; gap: 10px; margin-top: 20px; }
+.policy-library { max-width: 760px; }
+.policy-library > p[role="status"] { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--subtle); }
+.policy-library .error-banner { margin: 0 0 16px; }
+.policy-sheet { padding: 4px 24px 16px; border: 1px solid var(--card-border); border-radius: 18px; background: var(--surface); }
+.policy-sheet .policy-categories > div:first-child { border-top: 0; }
+.policy-library-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 18px; }
 .policy-library-controls > label { flex: 1; }
 .policy-library label { display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); font-size: 13.5px; font-weight: 500; }
 .policy-library-controls [data-slot="button"] { height: 42px; }

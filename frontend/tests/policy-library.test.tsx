@@ -19,9 +19,9 @@ beforeEach(() => { vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([sa
 afterEach(() => { vi.unstubAllGlobals(); document.documentElement.classList.remove("dark"); localStorage.clear(); });
 
 it("selects a saved policy and applies it to the current expense dataset", async () => {
-  const user = userEvent.setup(); const onReport = vi.fn(); const close = vi.fn();
+  const user = userEvent.setup(); const onReport = vi.fn();
   vi.mocked(fetch).mockImplementation(async (input) => String(input) === "/api/report/upload" ? response(fixture) : response([saved, travel]));
-  render(<PolicyLibrary open close={close} report={{ ...fixture, dataset_id: "custom-data", policy: { ...fixture.policy, id: saved.id } }} onReport={onReport} onBusy={vi.fn()} />);
+  render(<PolicyLibrary report={{ ...fixture, dataset_id: "custom-data", policy: { ...fixture.policy, id: saved.id } }} onReport={onReport} onBusy={vi.fn()} />);
   await screen.findByLabelText("Saved policy");
   expect(screen.getByRole("button", { name: "Use policy" })).toBeDisabled();
   await user.selectOptions(screen.getByLabelText("Saved policy"), travel.id);
@@ -31,7 +31,7 @@ it("selects a saved policy and applies it to the current expense dataset", async
   expect(body.get("dataset")).toBe("custom-data");
   expect(body.has("expenses")).toBe(false);
   expect((body.get("policy") as File).name).toBe("Travel_policy.json");
-  expect(close).toHaveBeenCalled();
+  expect(await screen.findByRole("status")).toHaveTextContent("Now checking expenses with Travel policy.");
 });
 
 it("creates category rules, saves them in the library, and leaves application explicit", async () => {
@@ -45,7 +45,7 @@ it("creates category rules, saves them in the library, and leaves application ex
     }
     return response([saved]);
   });
-  render(<PolicyLibrary open close={vi.fn()} report={fixture} onReport={onReport} onBusy={vi.fn()} />);
+  render(<PolicyLibrary report={fixture} onReport={onReport} onBusy={vi.fn()} />);
   await user.click(await screen.findByRole("button", { name: "New policy" }));
   await user.type(screen.getByLabelText("Policy name"), "Team travel");
   await user.clear(screen.getByLabelText("Meals amount limit"));
@@ -68,7 +68,7 @@ it("keeps a policy draft after server validation fails", async () => {
   const user = userEvent.setup();
   vi.mocked(fetch).mockImplementation(async (_, options) => options?.method === "POST"
     ? { ok: false, json: async () => ({ detail: "Invalid policy category" }) } as Response : response([saved]));
-  render(<PolicyLibrary open close={vi.fn()} report={fixture} onReport={vi.fn()} onBusy={vi.fn()} />);
+  render(<PolicyLibrary report={fixture} onReport={vi.fn()} onBusy={vi.fn()} />);
   await user.click(await screen.findByRole("button", { name: "New policy" }));
   await user.type(screen.getByLabelText("Policy name"), "My draft");
   await user.click(screen.getByRole("button", { name: "Save policy" }));
