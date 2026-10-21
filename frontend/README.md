@@ -268,3 +268,39 @@ silently omitted. Global summary/input errors are labeled separately from
 filtered claims. Amounts and employee/category/month totals are calculated in
 Python with decimal arithmetic before sending context. No live AI request is
 needed for automated tests; the provider boundary is mocked.
+
+## Receipt autofill
+
+On **Submit an expense**, upload a receipt before entering the details. The API
+uses the same server-only AI configuration described above; for the existing
+Azure Grok 4.7 deployment, keep `LLM_API=chat_completions` and its deployment name.
+Install the updated `requirements-web.txt` and restart the API after upgrading.
+The deployment must support image input and structured JSON output.
+
+Uploading sends the receipt images and the active policy's category names to the
+configured AI provider. PDF pages are rendered locally to images (no separate
+OCR service). Credentials and employee identity are never included in the model
+payload. Requests use `store=false`. The report assistant still does not receive
+receipt contents.
+
+Suggestions fill the date, amount, category, hotel nights when legible, and
+description. The generated ticket name is the first line of the existing
+description, so it is saved and displayed everywhere descriptions already appear;
+there is no separate title column. Details the user has manually edited are kept.
+Unknown fields stay blank and warnings request confirmation. A missing or foreign
+currency prevents automatic amount fill; no currency conversion is performed.
+Employee identity continues to come from the account, and no claim is saved or
+approved until the user explicitly submits it through the normal policy checks.
+
+Accepted inputs: PNG/JPEG or an unlocked PDF, up to 5 MiB; autofill additionally
+limits PDFs to 5 pages and images to 20 megapixels. Images are oriented and scaled
+to at most 2,000 pixels per edge before inference. Larger PDFs can still be
+attached for manual submission. Extraction errors retain the receipt and draft;
+retry, cancel autofill, or enter the details manually. Replacing/removing the file
+cancels the browser request and ignores stale results; an already-started provider
+request may still complete. Provider requests time out after 90 seconds.
+
+`POST /api/receipts/extract` accepts multipart `receipt` and optional `dataset`
+fields and requires a signed-in account with access to that dataset. Extraction
+returns validated suggestions and warnings without writing a claim or attachment.
+Tests mock the provider while exercising actual PNG/JPEG decoding and PDF rendering.

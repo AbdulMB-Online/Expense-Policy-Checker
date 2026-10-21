@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, CircleCheck, FileText, Loader2, ShieldCheck, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { categoryLabel, dateLabel, ExpenseSubmissionError, money, submitExpense, type Claim, type Report, type DemoUser } from "@/lib/report";
+import { categoryLabel, dateLabel, ExpenseSubmissionError, extractReceipt, money, submitExpense, type Claim, type Report, type DemoUser } from "@/lib/report";
 import { statusLabel } from "@/components/expense-review";
 
 function today() {
@@ -30,6 +30,11 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   const prefix = useId();
   const [draft, setDraft] = useState({ employee: user.role === "employee" ? user.name : "", date: today(), category: "", amount: "", description: "", nights: "" });
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
+  const [extractionNotes, setExtractionNotes] = useState<string[] | null>(null);
+  const extraction = useRef<AbortController | null>(null);
+  const editedFields = useRef(new Set<string>());
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
@@ -44,12 +49,69 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   const needsNights = settings?.nights_required || settings?.limit_basis === "per_night";
 
   useEffect(() => {
-    if (report && !report.policy.categories[draft.category]) {
+    if (report && extractionNotes === null && !report.policy.categories[draft.category]) {
       setDraft((previous) => ({ ...previous, category: Object.keys(report.policy.categories)[0] ?? "", nights: "" }));
     }
-  }, [report, draft.category]);
+  }, [report, draft.category, extractionNotes]);
 
   useEffect(() => { if (confirmation) resultHeading.current?.focus(); }, [confirmation]);
+
+  useEffect(() => {
+    setExtracting(false);
+    setExtractionError("");
+    setExtractionNotes(null);
+    return () => {
+      extraction.current?.abort();
+      extraction.current = null;
+    };
+  }, [report?.dataset_id]);
+
+  function cancelExtraction() {
+    extraction.current?.abort();
+    extraction.current = null;
+    setExtracting(false);
+    setExtractionError("");
+    setExtractionNotes(null);
+  }
+
+  async function autofill(file: File) {
+    cancelExtraction();
+    if (!report) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setFields((previous) => ({ ...previous, receipt: "Receipt must be 5 MiB or smaller." }));
+      return;
+    }
+    const controller = new AbortController();
+    extraction.current = controller;
+    setExtracting(true);
+    setConfirmation(null);
+    try {
+      const result = await extractReceipt(file, report.dataset_id, controller.signal);
+      if (controller.signal.aborted) return;
+      const description = [result.title, result.description].filter(Boolean).join("\n");
+      const suggestions = {
+        date: result.date ?? "", amount: result.amount ?? "", description,
+        category: result.category && report.policy.categories[result.category] ? result.category : "",
+        nights: result.nights == null ? "" : String(result.nights),
+      };
+      setDraft((previous) => {
+        const next = { ...previous };
+        for (const name of Object.keys(suggestions) as (keyof typeof suggestions)[]) {
+          if (!editedFields.current.has(name)) next[name] = suggestions[name];
+        }
+        return next;
+      });
+      setFields((previous) => Object.fromEntries(Object.entries(previous).filter(([name]) => editedFields.current.has(name))));
+      setExtractionNotes(result.warnings);
+    } catch (problem) {
+      if (!controller.signal.aborted) setExtractionError(problem instanceof Error ? problem.message : "Receipt autofill failed. Enter the details manually.");
+    } finally {
+      if (extraction.current === controller) {
+        extraction.current = null;
+        setExtracting(false);
+      }
+    }
+  }
 
   useEffect(() => {
     if (sending || busy || !errorFocus.current) return;
@@ -59,6 +121,8 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   }, [sending, busy, fields]);
 
   function startNewExpense() {
+    cancelExtraction();
+    editedFields.current.clear();
     requestId.current = crypto.randomUUID();
     setDraft((previous) => ({ ...previous, date: today(), amount: "", description: "", nights: "" }));
     setReceipt(null);
@@ -70,6 +134,7 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   }
 
   function change(name: keyof typeof draft, value: string) {
+    editedFields.current.add(name);
     setDraft((previous) => ({ ...previous, [name]: value, ...(name === "category" ? { nights: "" } : {}) }));
     setFields((previous) => ({ ...previous, [name]: "" }));
   }
@@ -84,7 +149,7 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!report || sending || busy) return;
+    if (!report || sending || busy || extracting) return;
     setError("");
     setConflict(false);
     setFields({});
@@ -104,6 +169,8 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
       const result = await submitExpense(files);
       onSaved(result.report);
       setConfirmation(result.claim);
+      cancelExtraction();
+      editedFields.current.clear();
       setDraft((previous) => ({ ...previous, amount: "", description: "", nights: "" }));
       setReceipt(null);
       if (fileInput.current) fileInput.current.value = "";
@@ -119,28 +186,41 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   }
 
   return <section className="user-expense-view" id="submit-expense" aria-label="User expense submission">
-    <header className="submission-heading"><h1>Submit an expense</h1><p>Add the details and a receipt. We’ll check the active policy and add your claim to the report.</p></header>
+    <header className="submission-heading"><h1>Submit an expense</h1><p>Upload a receipt to fill the details, review them, then submit for policy checks. You can also enter details manually.</p></header>
     {!report ? <div className="submission-empty" role="status">Loading the active expense policy…</div> : <>
       {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}</div></div>}
       <div className="submission-layout">
         <form ref={form} className="expense-form" aria-label="Submit an expense" onSubmit={submit}>
           <div className="expense-form-heading"><FileText size={20} /><div><h2>Expense details</h2><p>All fields are required unless marked optional.</p></div></div>
           <fieldset disabled={sending || busy}>
+            <div className="receipt-field receipt-autofill"><label htmlFor={`${prefix}-receipt`}><Upload size={17} />Receipt <span>(optional)</span></label><p>Upload a PDF, PNG, or JPEG up to 5 MiB to autofill your expense. PDFs can have up to 5 pages. Review all suggestions before submitting. Details you type are kept.</p><input ref={fileInput} id={`${prefix}-receipt`} name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" aria-invalid={!!fields.receipt} aria-describedby={fields.receipt ? `${prefix}-receipt-error` : undefined} onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setReceipt(file);
+              setFields((previous) => ({ ...previous, receipt: "" }));
+              if (file) void autofill(file); else cancelExtraction();
+            }} />
+              {receipt && <div className="receipt-actions"><button className="remove-receipt" type="button" onClick={() => { cancelExtraction(); setReceipt(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={13} />Remove receipt</button>{!extracting && <Button type="button" variant="outline" onClick={() => void autofill(receipt)}>Retry autofill</Button>}{extracting && <Button type="button" variant="outline" onClick={cancelExtraction}>Cancel autofill</Button>}</div>}
+              {extracting && <p role="status"><Loader2 size={15} className="spin" />Reading receipt…</p>}
+              {extractionError && <p role="alert">{extractionError} Your receipt and entered details have been kept.</p>}
+              {extractionNotes && <div role="status" className="receipt-suggestions"><p>Receipt read. Review the suggested details before submitting. Any details you typed have been kept.</p>{extractionNotes.length > 0 && <ul>{extractionNotes.map((note, index) => <li key={index}>{note}</li>)}</ul>}</div>}
+              {fieldError("receipt")}
+            </div>
+            <fieldset disabled={extracting}>
             <div className="expense-fields">
               <div className="expense-field"><label htmlFor={`${prefix}-employee`}>Employee name</label><input {...fieldProps("employee")} readOnly={user.role === "employee"} list={`${prefix}-employees`} autoComplete="name" required maxLength={200} placeholder="Enter your full name" />{fieldError("employee")}</div>
               <datalist id={`${prefix}-employees`}>{report.employees.map((name) => <option value={name} key={name} />)}</datalist>
               <div className="expense-field"><label htmlFor={`${prefix}-date`}>Expense date</label><input {...fieldProps("date")} type="date" required />{fieldError("date")}</div>
-              <div className="expense-field"><label htmlFor={`${prefix}-category`}>Category</label><select {...fieldProps("category")} required>{Object.keys(report.policy.categories).map((category) => <option value={category} key={category}>{categoryLabel(category)}</option>)}</select>{fieldError("category")}</div>
+              <div className="expense-field"><label htmlFor={`${prefix}-category`}>Category</label><select {...fieldProps("category")} required><option value="">Choose a category</option>{Object.keys(report.policy.categories).map((category) => <option value={category} key={category}>{categoryLabel(category)}</option>)}</select>{fieldError("category")}</div>
               <div className="expense-field"><label htmlFor={`${prefix}-amount`}>Amount ({report.currency})</label><input {...fieldProps("amount")} inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required maxLength={64} placeholder="0.00" />{fieldError("amount")}</div>
               {needsNights && <div className="expense-field"><label htmlFor={`${prefix}-nights`}>Number of nights</label><input {...fieldProps("nights")} type="number" min="1" step="1" required />{fieldError("nights")}</div>}
               <div className="expense-field expense-wide"><label htmlFor={`${prefix}-description`}>Description</label><textarea {...fieldProps("description")} rows={3} required maxLength={2000} placeholder="What was this expense for?" />{fieldError("description")}</div>
             </div>
-            <div className="receipt-field"><label htmlFor={`${prefix}-receipt`}><Upload size={17} />Receipt <span>(optional)</span></label><p>Attach a PDF, PNG, or JPEG up to 5 MiB. Missing required receipts will be flagged.</p><input ref={fileInput} id={`${prefix}-receipt`} name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" aria-invalid={!!fields.receipt} aria-describedby={fields.receipt ? `${prefix}-receipt-error` : undefined} onChange={(event) => { setReceipt(event.target.files?.[0] ?? null); setFields((previous) => ({ ...previous, receipt: "" })); }} />{receipt && <button className="remove-receipt" type="button" onClick={() => { setReceipt(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={13} />Remove receipt</button>}{fieldError("receipt")}</div>
+            </fieldset>
             {error && <div className="submission-error" role="alert"><CircleAlert size={17} /><div><p>{error} Your entered details have been kept.</p>{conflict && <Button type="button" variant="outline" onClick={startNewExpense}>Start a new expense</Button>}</div></div>}
-            <div className="expense-submit"><span>Policy flags are saved for finance review.</span><Button type="submit" className="gradient-button" disabled={!draft.category}>{sending ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}{sending ? "Submitting…" : "Submit expense"}</Button></div>
+            <div className="expense-submit"><span>Policy flags are saved for finance review.</span><Button type="submit" className="gradient-button" disabled={!draft.category || extracting}>{sending ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}{sending ? "Submitting…" : "Submit expense"}</Button></div>
           </fieldset>
         </form>
-        <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />Active policy</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{categoryLabel(draft.category)}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Enter the claim details.</li><li>Attach the supporting receipt.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
+        <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />Active policy</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{draft.category ? categoryLabel(draft.category) : "Choose a category"}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Upload a receipt or enter details.</li><li>Review and edit the suggestions.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
       </div>
       {showSubmitted && <SubmittedExpenses report={report} onClaim={onClaim} />}
     </>}

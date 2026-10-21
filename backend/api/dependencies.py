@@ -10,6 +10,7 @@ from backend.database.submissions import SubmissionStore
 from backend.database.workspace import WorkspaceStore
 from backend.services.expenses import ExpenseService
 from backend.services.policies import PolicyService
+from backend.services.receipt_extraction import ReceiptExtractor
 from backend.services.reports import ReportService
 from backend.services.sources import SourceStore
 
@@ -21,6 +22,7 @@ class Services:
     reports: ReportService
     expenses: ExpenseService
     policies: PolicyService
+    receipts: ReceiptExtractor
 
     @classmethod
     def create(cls, root: Path) -> "Services":
@@ -34,6 +36,7 @@ class Services:
             reports,
             ExpenseService(reports, submissions, workspace),
             PolicyService(sources),
+            ReceiptExtractor(root),
         )
 
 

@@ -259,3 +259,7 @@ the repository's **Actions** tab. The workflow is defined in
 The reviewer dashboard also includes an optional report assistant for questions
 about flags, policy rules, and spending patterns. See the
 [frontend setup guide](frontend/README.md#report-assistant) to configure its API key.
+
+Receipt uploads can also autofill an expense using the configured vision model
+Upload first, review the suggested date, amount, category and description, then submit. See
+[receipt autofill](frontend/README.md#receipt-autofill) for formats, limits and data handling.

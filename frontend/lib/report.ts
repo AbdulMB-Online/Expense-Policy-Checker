@@ -97,6 +97,24 @@ export class ExpenseSubmissionError extends Error {
   constructor(message: string, public fields: Record<string, string> = {}, public status?: number) { super(message); }
 }
 
+export interface ReceiptSuggestions {
+  merchant: string | null; title: string | null; description: string | null;
+  date: string | null; amount: string | null; currency: string | null;
+  category: string | null; nights: number | null; warnings: string[]; model: string;
+}
+
+export async function extractReceipt(receipt: File, dataset: string | null, signal: AbortSignal): Promise<ReceiptSuggestions> {
+  const files = new FormData();
+  files.append("receipt", receipt);
+  if (dataset) files.set("dataset", dataset);
+  const response = await fetch("/api/receipts/extract", { method: "POST", body: files, signal });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    throw new Error(typeof problem.detail === "string" ? problem.detail : problem.detail?.message ?? "Receipt autofill failed. Retry or enter details manually.");
+  }
+  return response.json();
+}
+
 export async function submitExpense(files: FormData): Promise<{ claim: Claim; report: Report }> {
   const response = await fetch("/api/expenses", { method: "POST", body: files });
   if (!response.ok) {
