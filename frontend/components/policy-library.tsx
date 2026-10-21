@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Check, ChevronLeft, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Check, ChevronLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { apiJson, categoryLabel, money, uploadReport, type CategoryPolicy, type Report } from "@/lib/report";
 
 export interface PolicyConfig {
@@ -18,8 +18,22 @@ function policyFile(config: PolicyConfig) {
   return new File([JSON.stringify(config, null, 2)], `${config.name.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`, { type: "application/json" });
 }
 
-export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
-  open: boolean; close: () => void; report: Report | null; onReport: (report: Report) => void; onBusy: (busy: boolean) => void;
+export function PolicySummary({ name, version, currency, categories, activeRules, rules }: {
+  name: string; version?: string; currency: string;
+  categories: Record<string, CategoryPolicy & { review_required?: boolean }>;
+  activeRules?: string[];
+  rules?: { deadline: string; restricted: string; duplicates: string };
+}) {
+  return <div className="policy-sheet">
+    <div className="policy-version"><span>{name}{version ? ` · Version ${version}` : ""}</span><span>{currency}</span></div>
+    <div className="policy-categories">{Object.entries(categories).map(([category, settings]) => <div key={category}><strong>{categoryLabel(category)}</strong><span>{settings.max_amount === null ? "No amount limit" : `${money(settings.max_amount, currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, currency)}` : "No receipt check"}{settings.review_required ? " · Manual review" : ""}</small></span></div>)}</div>
+    {rules && <div className="policy-rule-summary"><p><strong>Submission deadline</strong>{rules.deadline}</p><p><strong>Restricted categories</strong>{rules.restricted}</p><p><strong>Duplicate checks</strong>{rules.duplicates}</p></div>}
+    {!!activeRules?.length && <div className="active-checks"><span>Active checks</span>{activeRules.map((rule) => <Badge key={rule} variant="outline"><Check size={11} />{rule}</Badge>)}</div>}
+  </div>;
+}
+
+export function PolicyLibrary({ report, onReport, onBusy }: {
+  report: Report | null; onReport: (report: Report) => void; onBusy: (busy: boolean) => void;
 }) {
   const [policies, setPolicies] = useState<SavedPolicy[]>([]);
   const [selected, setSelected] = useState("");
@@ -31,20 +45,25 @@ export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [retry, setRetry] = useState(0);
+  const picked = useRef(false);
   const policy = policies.find((item) => item.id === selected);
 
   useEffect(() => {
-    if (!open) return;
     const controller = new AbortController();
-    setLoading(true); setError(""); setNotice(""); setDraft(null);
+    setLoading(true); setError("");
     apiJson<SavedPolicy[]>("/api/policies", { signal: controller.signal }).then((items) => {
       if (controller.signal.aborted) return;
+      if (!Array.isArray(items)) throw new Error("Saved policies couldn't be loaded.");
       setPolicies(items);
-      setSelected(items.find((item) => item.id === report?.policy.id)?.id ?? items[0]?.id ?? "");
       setLoading(false);
-    }).catch((problem) => { if (!controller.signal.aborted) { setError(problem.message); setLoading(false); } });
+    }).catch((problem) => { if (!controller.signal.aborted) { setError(problem instanceof Error ? problem.message : "Saved policies couldn't be loaded."); setLoading(false); } });
     return () => controller.abort();
-  }, [open, retry]);
+  }, [retry]);
+
+  useEffect(() => {
+    if (picked.current || !policies.length) return;
+    setSelected(policies.find((item) => item.id === report?.policy.id)?.id ?? policies[0].id);
+  }, [policies, report?.policy.id]);
 
   function create() {
     if (!policy) return;
@@ -61,7 +80,7 @@ export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
       const files = new FormData(); files.set("policy", policyFile({ ...draft, restricted_categories: [...new Set(restricted.split(",").map((value) => value.trim()).filter(Boolean))] }));
       const saved = await apiJson<SavedPolicy>("/api/policies", { method: "POST", body: files });
       setPolicies((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
-      setSelected(saved.id); setDraft(null); setNotice("Policy saved. Select Use policy to check the current expenses against it.");
+      setSelected(saved.id); setDraft(null); setNotice("Policy saved. Choose Use policy to apply it.");
     } catch (problem) { setError(problem instanceof Error ? problem.message : "The policy could not be saved. Your changes have been kept."); }
     finally { setBusy(false); onBusy(false); }
   }
@@ -69,7 +88,7 @@ export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
   async function apply() {
     if (!policy) return;
     setBusy(true); onBusy(true); setError("");
-    try { onReport(await uploadReport(null, policyFile(policy.config), report?.dataset_id ?? null)); close(); }
+    try { onReport(await uploadReport(null, policyFile(policy.config), report?.dataset_id ?? null)); setNotice(`Now checking expenses with ${policy.config.name}.`); }
     catch (problem) { setError(problem instanceof Error ? problem.message : "The policy could not be applied. Your current report has been kept."); }
     finally { setBusy(false); onBusy(false); }
   }
@@ -87,19 +106,19 @@ export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
     setCategory(""); setError("");
   }
 
-  return <Dialog open={open} onOpenChange={(value) => { if (!value && !busy) close(); }}><DialogContent className="detail-dialog policy-library" showCloseButton={!busy}>
-    <DialogHeader><div className="dialog-eyebrow"><ShieldCheck size={16} />Policies</div><DialogTitle>{draft ? "Create a policy" : "Policy library"}</DialogTitle><DialogDescription>{draft ? "Start from an existing policy, then set the rules for your team." : "Save different policies and choose which one checks the current expenses."}</DialogDescription></DialogHeader>
+  const title = draft ? "Create a policy" : policy?.config.name ?? report?.policy.name ?? "Policies";
+  return <section className="policy-library" aria-label="Policies">
+    <header className="workspace-page-heading"><h1>{title}</h1><p>{draft ? "Starts as a copy of the policy you had selected." : "Choose which policy checks the current expenses."}</p></header>
     {loading && <p role="status"><Loader2 size={15} className="spin" /> Loading policies…</p>}
     {error && <div className="error-banner" role="alert"><p>{error}</p>{!policies.length && <Button onClick={() => setRetry((value) => value + 1)}>Retry</Button>}</div>}
     {notice && <p className="policy-notice" role="status"><Check size={16} />{notice}</p>}
-    {!loading && !draft && policy && <>
-      <div className="policy-library-controls"><label>Saved policy<select value={selected} disabled={busy} onChange={(event) => { setSelected(event.target.value); setNotice(""); }}>{policies.map((item) => <option value={item.id} key={item.id}>{item.config.name} · v{item.config.version}{item.id === report?.policy.id ? " (active)" : ""}</option>)}</select></label><Button variant="outline" onClick={create} disabled={busy}><Plus size={15} />New policy</Button></div>
-      <div className="policy-version"><span>{policy.config.name} · Version {policy.config.version}</span><span>{policy.config.currency}</span></div>
-      <div className="policy-categories">{Object.entries(policy.config.categories).map(([name, settings]) => <div key={name}><strong>{categoryLabel(name)}</strong><span>{settings.max_amount === null ? "No amount limit" : `${money(settings.max_amount, policy.config.currency)} / ${settings.limit_basis === "per_night" ? "night" : "claim"}`}<small>{settings.receipt.mode === "always" ? "Receipt required" : settings.receipt.mode === "above_threshold" ? `Receipt above ${money(settings.receipt.threshold!, policy.config.currency)}` : "No receipt check"}{settings.review_required ? " · Manual review" : ""}</small></span></div>)}</div>
-      <div className="policy-rule-summary"><p><strong>Submission deadline</strong>{policy.config.submission.max_days_after_expense} days after the expense</p><p><strong>Restricted categories</strong>{policy.config.restricted_categories.map(categoryLabel).join(", ") || "None"}</p><p><strong>Duplicate checks</strong>{policy.config.duplicates.key_fields.map(categoryLabel).join(", ")}</p></div>
-      <p className="review-guidance">Applying a policy rechecks the current expenses and saves a report snapshot. Earlier policies and review history remain available.{policy.config.currency !== report?.currency && " This policy uses a different currency. Amounts are not converted; submissions are kept in a separate currency workspace."}</p>
+    {!draft && policy && <>
+      <div className="policy-library-controls"><label>Saved policy<select value={selected} disabled={busy} onChange={(event) => { picked.current = true; setSelected(event.target.value); setNotice(""); }}>{policies.map((item) => <option value={item.id} key={item.id}>{item.config.name} · v{item.config.version}{item.id === report?.policy.id ? " (active)" : ""}</option>)}</select></label><Button variant="outline" onClick={create} disabled={busy}><Plus size={15} />New policy</Button></div>
+      <PolicySummary name={policy.config.name} version={policy.config.version} currency={policy.config.currency} categories={policy.config.categories} activeRules={policy.id === report?.policy.id ? report?.policy.active_rules : undefined} rules={{ deadline: `${policy.config.submission.max_days_after_expense} days after the expense`, restricted: policy.config.restricted_categories.map(categoryLabel).join(", ") || "None", duplicates: policy.config.duplicates.key_fields.map(categoryLabel).join(", ") }} />
+      {policy.config.currency !== report?.currency && <p className="review-guidance">This policy uses {policy.config.currency}. Amounts aren't converted, so its submissions are kept separately.</p>}
       <div className="policy-library-footer"><span>{policy.id === report?.policy.id ? "Currently active" : `${policies.length} saved ${policies.length === 1 ? "policy" : "policies"}`}</span><Button onClick={apply} disabled={busy || policy.id === report?.policy.id}>{busy ? <Loader2 size={15} className="spin" /> : <Check size={15} />}{busy ? "Checking expenses…" : "Use policy"}</Button></div>
     </>}
+    {!draft && !policy && report && <PolicySummary name={report.policy.name} version={report.policy.version} currency={report.currency} categories={report.policy.categories} activeRules={report.policy.active_rules} />}
     {draft && <form className="policy-editor" onSubmit={save}><fieldset disabled={busy}>
       <button type="button" className="policy-back" onClick={() => { setDraft(null); setError(""); }}><ChevronLeft size={15} />Back to library</button>
       <div className="policy-form-grid"><label className="expense-wide">Policy name<input required maxLength={100} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="e.g. Business travel" /></label><label>Version<input required maxLength={30} value={draft.version} onChange={(event) => setDraft({ ...draft, version: event.target.value })} /></label><label>Currency<input required pattern="[A-Z]{3}" maxLength={3} value={draft.currency} onChange={(event) => setDraft({ ...draft, currency: event.target.value.toUpperCase() })} /></label></div>
@@ -116,8 +135,7 @@ export function PolicyLibrary({ open, close, report, onReport, onBusy }: {
       <label className="policy-checkbox"><input type="checkbox" checked={draft.submission.inclusive} onChange={(event) => setDraft({ ...draft, submission: { ...draft.submission, inclusive: event.target.checked } })} />Allow submissions on the deadline</label>
       <label>Duplicate handling<select value={draft.duplicates.flag} onChange={(event) => setDraft({ ...draft, duplicates: { ...draft.duplicates, flag: event.target.value as "all_matches" | "later_matches" } })}><option value="all_matches">Flag all matching claims</option><option value="later_matches">Flag later matching claims</option></select></label>
       <div className="duplicate-fields"><span>Match duplicates by</span>{["employee", "date", "category", "amount", "nights", "description"].map((field) => <label className="policy-checkbox" key={field}><input type="checkbox" checked={draft.duplicates.key_fields.includes(field)} onChange={(event) => setDraft({ ...draft, duplicates: { ...draft.duplicates, key_fields: event.target.checked ? [...draft.duplicates.key_fields, field] : draft.duplicates.key_fields.filter((value) => value !== field) } })} />{categoryLabel(field)}</label>)}</div>
-      <p className="review-guidance">Unknown categories and invalid expense dates are also checked. Finance makes the final decision.</p>
       <div className="policy-library-footer"><Button variant="outline" type="button" onClick={() => setDraft(null)}>Cancel</Button><Button type="submit" disabled={!draft.duplicates.key_fields.length}>{busy && <Loader2 size={15} className="spin" />}{busy ? "Saving…" : "Save policy"}</Button></div>
     </fieldset></form>}
-  </DialogContent></Dialog>;
+  </section>;
 }

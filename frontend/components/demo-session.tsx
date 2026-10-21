@@ -54,9 +54,9 @@ export default function DemoSession() {
   const matches = accounts.filter((account) => account.name.toLocaleLowerCase().includes(query));
 
   return <main className="sign-in-screen">
-    <header className="sign-in-top"><a href="#sign-in" className="brand"><span className="brand-mark"><CheckCheck size={23} /></span><span>expensecheck.</span></a><ThemeToggle /></header>
+    <header className="sign-in-top"><a href="#sign-in" className="brand"><span className="brand-mark"><CheckCheck size={18} strokeWidth={2.5} /></span><span>expensecheck</span></a><ThemeToggle /></header>
     <section className="sign-in-card" id="sign-in" aria-labelledby="sign-in-title">
-      <div className="sign-in-heading"><div className="sign-in-emblem" aria-hidden="true"><CheckCheck size={28} strokeWidth={1.7} /></div><h1 id="sign-in-title">Welcome back.</h1><p>Find your account. Pick up where you left off.</p></div>
+      <div className="sign-in-heading"><h1 id="sign-in-title">Welcome back.</h1><p>Choose your account to continue.</p></div>
       <form onSubmit={(event) => { event.preventDefault(); if (accountId && !busy) void login(accountId); }}>
         <div className="account-directory-heading"><h2>Your team</h2><span>{accounts.length ? `${accounts.length} accounts` : ""}</span></div>
         <div className="account-search"><Search size={18} aria-hidden="true" /><input aria-label="Find your account" autoComplete="off" placeholder="Search your name" value={search} onChange={(event) => setSearch(event.target.value)} disabled={busy} />{search && <button type="button" onClick={() => setSearch("")} aria-label="Clear account search"><X size={16} /></button>}</div>
@@ -73,9 +73,8 @@ export default function DemoSession() {
           {!matches.length && <div className="account-directory-empty" role="status">{busy ? <><Loader2 size={20} className="spin" /><span>Loading your team…</span></> : <><Search size={22} /><strong>{query ? "No accounts found" : "No accounts available"}</strong><span>{query ? "Try a different name." : "Reload the account list to try again."}</span>{query ? <button type="button" onClick={() => setSearch("")}>Clear search</button> : <button type="button" onClick={() => { void initialize(); }}>Reload accounts</button>}</>}</div>}
         </fieldset>
         {error && <div className="sign-in-error" role="alert"><p>{error}</p>{!accounts.length && <button type="button" onClick={() => { void initialize(); }}>Try again</button>}</div>}
-        <div className="sign-in-action"><div className="sign-in-selection" aria-live="polite">{selected ? <><span className="selection-dot" /><span>Continue as<strong>{selected.name}</strong></span></> : <span>Select your account<br /><small>to open your workspace</small></span>}</div><Button type="submit" disabled={busy || !accountId}>{busy && accountId ? <><Loader2 size={16} className="spin" />Signing in…</> : <>Sign in<ArrowRight size={17} /></>}</Button></div>
+        <div className="sign-in-action"><div className="sign-in-selection" aria-live="polite">{selected ? <span>Continue as <strong>{selected.name}</strong></span> : <span>No account selected</span>}</div><Button type="submit" disabled={busy || !accountId}>{busy && accountId ? <><Loader2 size={16} className="spin" />Signing in…</> : <>Sign in<ArrowRight size={17} /></>}</Button></div>
       </form>
     </section>
-    <footer className="sign-in-footer"><span>Less admin. More clarity.</span><span>ExpenseCheck</span></footer>
   </main>;
 }

@@ -60,12 +60,12 @@ describe("dashboard", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Claims to review" }));
     await screen.findByRole("button", { name: /Alice Morgan/ });
     await user.click(screen.getByRole("tab", { name: "Input issues" }));
-    await user.click(screen.getByRole("button", { name: /A few records need fixing/ }));
+    expect(screen.getByRole("button", { name: /A few records need fixing/ })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("employee: required field is empty")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "View active policy" }));
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("Expense policy")).toBeInTheDocument();
-    expect(within(dialog).getByText("$50.00 / claim")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Expense policy" })).toBeInTheDocument();
+    expect(screen.getByText("$50.00 / claim")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows API errors and retries successfully", async () => {

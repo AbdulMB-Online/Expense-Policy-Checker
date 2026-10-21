@@ -9,6 +9,17 @@ from backend.api.schemas import OwnerInput, ReviewInput
 router = APIRouter()
 
 
+@router.post("/api/receipts/extract")
+def extract_receipt(
+    receipt: UploadFile,
+    dataset: str | None = Form(default=None, max_length=100),
+    user=Depends(current_user),
+    services: Services = Depends(get_services),
+):
+    source = services.reports.resolve_source(dataset, user)
+    return services.receipts.extract(receipt, source.policy)
+
+
 @router.post("/api/expenses", status_code=201)
 def submit_expense(
     employee: str = Form(max_length=200),

@@ -14,8 +14,8 @@ export function ReportAssistant({ report, employee, search, onClaim }: { report:
   return <>
     <Button className="assistant-launch" variant="outline" onClick={() => setOpen(true)}><MessageCircle size={16} />Ask about this report</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="assistant-dialog">
-      <DialogHeader><DialogTitle>Report assistant</DialogTitle><DialogDescription>Explore policy flags, spending patterns, and review priorities.</DialogDescription></DialogHeader>
-      <label className="assistant-scope">Discuss<select aria-label="Chat report scope" value={scope} onChange={e => setScope(e.target.value)}><option value="all">Entire report</option><option value="filtered">Current filters</option></select></label>
+      <DialogHeader><DialogTitle>Ask about this report</DialogTitle><DialogDescription>Get help spotting patterns and deciding what to review first.</DialogDescription></DialogHeader>
+      <label className="assistant-scope">Looking at<select aria-label="Chat report scope" value={scope} onChange={e => setScope(e.target.value)}><option value="all">Entire report</option><option value="filtered">Current filters</option></select></label>
       <Chat key={`${report.dataset_id}-${scope}-${employee}-${search}-${report.generated_at}`} report={report} employee={scope === "filtered" ? employee : ""} search={scope === "filtered" ? search : ""} onClaim={claim => { setOpen(false); onClaim(claim); }} />
     </DialogContent></Dialog>
   </>;
@@ -61,17 +61,16 @@ function Chat({ report, employee, search, onClaim }: { report: Report; employee:
   function stop() { controller.current?.abort(); setBusy(false); setError("Request stopped. You can send your question again."); }
   const limit = messages.length >= 20;
   return <>
-    <p className="assistant-context">{report.sources.expenses} · {employee || "All employees"}{search ? ` · Search: ${search}` : ""}</p>
-    {!status ? <p role="status">Checking assistant connection…</p> : !status.available ? <p className="assistant-notice" role="status">{status.message}</p> : <p className="assistant-note">Questions and report data are sent to {status.provider ?? "the configured AI provider"}. Receipt files are not sent. Verify AI insights before making decisions.</p>}
+    <p className="assistant-context">{report.sources.expenses}, {employee || "all employees"}{search ? `, matching “${search}”` : ""}</p>
+    {!status ? <p className="assistant-note" role="status">Connecting…</p> : !status.available ? <p className="assistant-notice" role="status">{status.message}</p> : <p className="assistant-note">Questions and report data are sent to {status.provider ?? "your AI provider"}. Receipts stay here.</p>}
     <div className="assistant-messages" role="log" aria-label="Report conversation" aria-live="polite">
       {!messages.length && <div className="assistant-welcome"><MessageCircle size={25} /><h3>What would you like to understand?</h3><p>Ask your own question or start with one below.</p><div className="assistant-prompts">{prompts.map(prompt => <button key={prompt} disabled={!status?.available || busy} onClick={() => { setQuestion(prompt); void send(prompt); }}>{prompt}</button>)}</div></div>}
       {messages.map((message, i) => <article className={`assistant-message ${message.role}`} key={i}><strong>{message.role === "user" ? "You" : "Report assistant"}</strong><p>{message.content}</p>{!!message.references?.length && <div className="assistant-citations">{message.references.map(id => { const claim = references.find(c => c.id === id); return <button key={id} disabled={!claim} onClick={() => claim && onClaim(claim)}>View {id}</button>; })}</div>}</article>)}
-      {busy && <p role="status"><Loader2 size={14} className="spin" /> Reading the report and preparing an answer…</p>}
+      {busy && <p className="assistant-thinking" role="status"><Loader2 size={14} className="spin" />Reading the report…</p>}
       <div ref={end} />
     </div>
     {error && <p role="alert" className="assistant-error">{error}</p>}
     {limit && <p role="status">Start a new chat to continue after 10 answers.</p>}
     <form className="assistant-composer" onSubmit={e => { e.preventDefault(); void send(); }}><label htmlFor="report-question">Your question</label><textarea ref={input} id="report-question" maxLength={4000} rows={3} value={question} disabled={!status?.available || busy || limit} onChange={e => setQuestion(e.target.value)} placeholder="Why was a claim flagged? Where should I focus?" /><div><Button type="button" variant="ghost" disabled={busy || !messages.length} onClick={() => { setMessages([]); setError(""); setQuestion(""); }}><RotateCcw size={14} />New chat</Button>{busy ? <Button type="button" variant="outline" onClick={stop}>Stop</Button> : <Button type="submit" disabled={!status?.available || !question.trim() || limit}><Send size={14} />Send question</Button>}</div></form>
-    <p className="assistant-note">Chat resets when the report or filters change. The assistant cannot approve or edit claims.</p>
   </>;
 }
