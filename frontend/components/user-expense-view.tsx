@@ -13,11 +13,12 @@ export function SubmittedExpenses({ report, onClaim, all = false }: { report: Re
   const [showAll, setShowAll] = useState(false);
   const claims = [...(all || report.current_user?.role === "employee" ? report.claims : report.submissions)].reverse();
   return <section className="submitted-expenses" aria-label="Submitted expenses">
-    <div className="section-heading"><div><h2>{all ? "All expenses" : "Submitted expenses"} <span className="heading-count">{claims.length}</span></h2><p>Every claim, including those with no active policy flags.</p></div></div>
     {claims.length ? <div className="submitted-list">{(showAll ? claims : claims.slice(0, 5)).map((claim) => <button className="submitted-row" key={claim.id} onClick={() => onClaim(claim)} aria-label={`View ${all ? "review" : "submitted"} expense ${claim.id}`}>
-      <span className="claim-category-icon"><FileText size={17} /></span><span className="submitted-identity"><strong>{claim.employee} · {categoryLabel(claim.category)}</strong><small>{dateLabel(claim.date)} · {claim.description}</small><small>{claim.id}{claim.receipt ? ` · Receipt: ${claim.receipt.name}` : " · No receipt"}</small></span>
-      <span className={`submission-status ${claim.status}`}>{claim.review_status && <span>{statusLabel(claim.review_status)} · </span>}{claim.status === "flagged" ? `${claim.violations.length} policy ${claim.violations.length === 1 ? "flag" : "flags"}` : "Unflagged by active checks"}</span><strong>{money(claim.amount, report.currency)}</strong><ArrowRight size={15} />
-    </button>)}{claims.length > 5 && <Button variant="ghost" onClick={() => setShowAll(!showAll)}>{showAll ? "Show recent submissions" : "Show all submissions"}</Button>}</div> : <p className="submission-empty"><FileText size={18} />Your submitted expenses will appear here.</p>}
+      <span className="claim-category-icon"><FileText size={17} /></span>
+      <span className="submitted-identity"><strong>{claim.description}</strong><small>{all && <span>{claim.employee}</span>}<span>{categoryLabel(claim.category)}</span><span>{dateLabel(claim.date)}</span>{!claim.receipt && !claim.receipt_attached && <span>No receipt</span>}</small></span>
+      <span className="submission-tags">{claim.review_status && claim.review_status !== "submitted" && <span className={`review-chip ${claim.review_status}`}>{statusLabel(claim.review_status)}</span>}<span className={`submission-status ${claim.status}`}>{claim.status === "flagged" ? `${claim.violations.length} ${claim.violations.length === 1 ? "flag" : "flags"}` : "No flags"}</span></span>
+      <strong className="submitted-amount">{money(claim.amount, report.currency)}</strong>
+    </button>)}{claims.length > 5 && <button className="show-more" onClick={() => setShowAll(!showAll)}>{showAll ? "Show recent submissions" : "Show all submissions"}</button>}</div> : <p className="submission-empty"><FileText size={18} />Expenses you submit will show up here.</p>}
   </section>;
 }
 
@@ -186,23 +187,30 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
   }
 
   return <section className="user-expense-view" id="submit-expense" aria-label="User expense submission">
-    <header className="submission-heading"><h1>Submit an expense</h1><p>Upload a receipt to fill the details, review them, then submit for policy checks. You can also enter details manually.</p></header>
-    {!report ? <div className="submission-empty" role="status">Loading the active expense policy…</div> : <>
-      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={23} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id} · {money(confirmation.amount, report.currency)} · {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No violations detected by active checks. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}</div></div>}
+    <header className="submission-heading"><h1>Submit an expense</h1><p>Drop in a receipt to fill the form, or type the details yourself.</p></header>
+    {!report ? <div className="submission-empty" role="status">Loading your expense policy…</div> : <>
+      {confirmation && <div className={`submission-result ${confirmation.status}`} role="status"><CircleCheck size={22} /><div><h2 tabIndex={-1} ref={resultHeading}>Expense submitted</h2><p>{confirmation.id}, {money(confirmation.amount, report.currency)}. {confirmation.status === "flagged" ? "Saved with policy flags for review." : "No policy flags. Final review is still required."}</p>{confirmation.violations.length > 0 && <ul>{confirmation.violations.map((violation, index) => <li key={`${violation.rule_id}-${index}`}><strong>{violation.rule_name}:</strong> {violation.reason}</li>)}</ul>}</div></div>}
       <div className="submission-layout">
         <form ref={form} className="expense-form" aria-label="Submit an expense" onSubmit={submit}>
-          <div className="expense-form-heading"><FileText size={20} /><div><h2>Expense details</h2><p>All fields are required unless marked optional.</p></div></div>
           <fieldset disabled={sending || busy}>
-            <div className="receipt-field receipt-autofill"><label htmlFor={`${prefix}-receipt`}><Upload size={17} />Receipt <span>(optional)</span></label><p>Upload a PDF, PNG, or JPEG up to 5 MiB to autofill your expense. PDFs can have up to 5 pages. Review all suggestions before submitting. Details you type are kept.</p><input ref={fileInput} id={`${prefix}-receipt`} name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" aria-invalid={!!fields.receipt} aria-describedby={fields.receipt ? `${prefix}-receipt-error` : undefined} onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setReceipt(file);
-              setFields((previous) => ({ ...previous, receipt: "" }));
-              if (file) void autofill(file); else cancelExtraction();
-            }} />
-              {receipt && <div className="receipt-actions"><button className="remove-receipt" type="button" onClick={() => { cancelExtraction(); setReceipt(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={13} />Remove receipt</button>{!extracting && <Button type="button" variant="outline" onClick={() => void autofill(receipt)}>Retry autofill</Button>}{extracting && <Button type="button" variant="outline" onClick={cancelExtraction}>Cancel autofill</Button>}</div>}
-              {extracting && <p role="status"><Loader2 size={15} className="spin" />Reading receipt…</p>}
-              {extractionError && <p role="alert">{extractionError} Your receipt and entered details have been kept.</p>}
-              {extractionNotes && <div role="status" className="receipt-suggestions"><p>Receipt read. Review the suggested details before submitting. Any details you typed have been kept.</p>{extractionNotes.length > 0 && <ul>{extractionNotes.map((note, index) => <li key={index}>{note}</li>)}</ul>}</div>}
+            <div className="receipt-autofill">
+              <div className={`receipt-drop${receipt ? " has-file" : ""}${extracting ? " is-reading" : ""}`}>
+                <input ref={fileInput} className="receipt-input" id={`${prefix}-receipt`} name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" aria-invalid={!!fields.receipt} aria-describedby={fields.receipt ? `${prefix}-receipt-error` : undefined} onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setReceipt(file);
+                  setFields((previous) => ({ ...previous, receipt: "" }));
+                  if (file) void autofill(file); else cancelExtraction();
+                }} />
+                <span className="receipt-drop-icon" aria-hidden="true">{extracting ? <Loader2 size={20} className="spin" /> : receipt ? <FileText size={20} /> : <Upload size={20} />}</span>
+                <span className="receipt-drop-copy"><label htmlFor={`${prefix}-receipt`}>Receipt <span>(optional)</span></label><small>{receipt ? receipt.name : "Drop a PDF or image here, or click to browse. Up to 5 MB."}</small></span>
+              </div>
+              {receipt && <div className="receipt-actions">
+                {extracting && <p role="status">Reading receipt…</p>}
+                {extracting ? <Button type="button" variant="ghost" onClick={cancelExtraction}>Cancel autofill</Button> : <Button type="button" variant="ghost" onClick={() => void autofill(receipt)}>Retry autofill</Button>}
+                <button className="remove-receipt" type="button" onClick={() => { cancelExtraction(); setReceipt(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={14} />Remove receipt</button>
+              </div>}
+              {extractionError && <p className="receipt-message is-error" role="alert">{extractionError}</p>}
+              {extractionNotes && <div role="status" className="receipt-message receipt-suggestions"><p>Receipt read. Check the details below.</p>{extractionNotes.length > 0 && <ul>{extractionNotes.map((note, index) => <li key={index}>{note}</li>)}</ul>}</div>}
               {fieldError("receipt")}
             </div>
             <fieldset disabled={extracting}>
@@ -216,11 +224,18 @@ export function UserExpenseView({ report, busy, onBusy, onSaved, onClaim, user, 
               <div className="expense-field expense-wide"><label htmlFor={`${prefix}-description`}>Description</label><textarea {...fieldProps("description")} rows={3} required maxLength={2000} placeholder="What was this expense for?" />{fieldError("description")}</div>
             </div>
             </fieldset>
-            {error && <div className="submission-error" role="alert"><CircleAlert size={17} /><div><p>{error} Your entered details have been kept.</p>{conflict && <Button type="button" variant="outline" onClick={startNewExpense}>Start a new expense</Button>}</div></div>}
-            <div className="expense-submit"><span>Policy flags are saved for finance review.</span><Button type="submit" className="gradient-button" disabled={!draft.category || extracting}>{sending ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}{sending ? "Submitting…" : "Submit expense"}</Button></div>
+            {error && <div className="submission-error" role="alert"><CircleAlert size={17} /><div><p>{error}</p>{conflict && <Button type="button" variant="outline" onClick={startNewExpense}>Start a new expense</Button>}</div></div>}
+            <div className="expense-submit"><Button type="submit" className="gradient-button" disabled={!draft.category || extracting}>{sending ? <Loader2 size={15} className="spin" /> : <ArrowRight size={15} />}{sending ? "Submitting…" : "Submit expense"}</Button></div>
           </fieldset>
         </form>
-        <aside className="submission-policy" aria-label="Submission policy"><div className="dialog-eyebrow"><ShieldCheck size={17} />Active policy</div><h2>{report.policy.name}</h2><p>Version {report.policy.version} · {report.currency}</p><div className="submission-policy-category"><strong>{draft.category ? categoryLabel(draft.category) : "Choose a category"}</strong><span>{settings?.max_amount == null ? "No configured amount limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</span><span>{settings?.receipt.mode === "always" ? "Receipt always required" : settings?.receipt.mode === "above_threshold" ? `Receipt required above ${money(settings.receipt.threshold!, report.currency)}` : "Receipt rule unconfigured"}</span></div><ol><li>Upload a receipt or enter details.</li><li>Review and edit the suggestions.</li><li>Submit to check the policy and save.</li></ol><p className="submission-policy-note">The configured policy checks run on submit. Finance makes the final decision.</p></aside>
+        <aside className="submission-policy" aria-label="Submission policy">
+          <span className="submission-policy-label"><ShieldCheck size={15} />{report.policy.name}</span>
+          <h2>{draft.category ? categoryLabel(draft.category) : "Choose a category"}</h2>
+          <dl>
+            <div><dt>Limit</dt><dd>{settings?.max_amount == null ? "No limit" : `${money(settings.max_amount, report.currency)} per ${settings.limit_basis === "per_night" ? "night" : "expense"}`}</dd></div>
+            <div><dt>Receipt</dt><dd>{settings?.receipt.mode === "always" ? "Always required" : settings?.receipt.mode === "above_threshold" ? `Required above ${money(settings.receipt.threshold!, report.currency)}` : "Not checked"}</dd></div>
+          </dl>
+        </aside>
       </div>
       {showSubmitted && <SubmittedExpenses report={report} onClaim={onClaim} />}
     </>}

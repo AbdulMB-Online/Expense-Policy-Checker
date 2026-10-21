@@ -199,7 +199,7 @@ describe("expense submission", () => {
     await user.click(within(form).getByRole("button", { name: "Submit expense" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Final review is still required.");
     await user.click(screen.getByRole("tab", { name: "My expenses" }));
-    expect(screen.getByRole("button", { name: "View submitted expense USR-NEW" })).toHaveTextContent("Unflagged by active checks");
+    expect(screen.getByRole("button", { name: "View submitted expense USR-NEW" })).toHaveTextContent("No flags");
     cleanup();
     vi.mocked(fetch).mockResolvedValue(response(updated(clean)));
     render(<Component user={demoReviewer} />);

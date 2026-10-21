@@ -7,7 +7,7 @@ export function ThemeToggle() {
   function toggle() {
     const next = !dark;
     document.documentElement.classList.toggle("dark", next);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#101722" : "#f4f7fb");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#0f1311" : "#f3f5f2");
     try { localStorage.setItem("expense-theme", next ? "dark" : "light"); } catch { /* The toggle still works when browser storage is unavailable. */ }
     setDark(next);
   }
