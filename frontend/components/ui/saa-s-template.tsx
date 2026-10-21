@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportAssistant } from "@/components/report-assistant";
 import { PolicyLibrary } from "@/components/policy-library";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SourceFiles } from "@/components/source-files";
@@ -246,6 +247,7 @@ export default function Component({ user, onLogout = () => {} }: { user: DemoUse
           <TabsContent value="expenses" forceMount hidden={activeTab !== "expenses"}><header className="workspace-page-heading"><h1>My expenses</h1><p>Track your submitted claims and review their status.</p></header>{report && <SubmittedExpenses report={report} onClaim={setSelectedClaim} />}</TabsContent>
         </>}
         {user.role === "reviewer" && <>
+      {report && !pending && !error && <ReportAssistant report={report} employee={employee} search={debouncedSearch} onClaim={setSelectedClaim} />}
         <TabsContent value="overview" forceMount hidden={activeTab !== "overview"}>
       <Hero report={error ? null : report} busy={pending} refresh={refresh} review={() => setActiveTab("reports")} />
       <Metrics report={error ? null : report} />

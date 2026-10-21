@@ -343,6 +343,32 @@ input::file-selector-button { padding: 7px 11px; margin-right: 10px; border: 1px
   .skip-link { left: 20px; }.user-expense-view { padding-top: 25px; }.submission-policy { order: 0; }.submission-policy ol, .submission-policy-note { display: block; }.expense-form, .submission-policy { padding: 24px; }
 
 }
+
+/* Read-only report conversation, sized for desktop and mobile keyboards. */
+.assistant-launch { margin: 24px 0 0; gap: 8px; }
+.assistant-dialog { width: min(760px, calc(100vw - 24px)); max-width: 760px; max-height: 90dvh; display: flex; flex-direction: column; gap: 12px; overflow: auto; background: #111116; color: #eee; border: 1px solid #33313f; }
+.assistant-scope { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.assistant-scope select { background: #202028; border: 1px solid #494354; border-radius: 6px; padding: 7px; }
+.assistant-context, .assistant-note { color: #aaa5b6; font-size: 12px; overflow-wrap: anywhere; }
+.assistant-notice { background: #292337; border-radius: 8px; padding: 14px; font-size: 14px; }
+.assistant-messages { overflow-y: auto; min-height: 120px; flex: 1; max-height: 42dvh; padding: 4px; }
+.assistant-welcome { padding: 12px 0; }
+.assistant-welcome h3 { margin: 10px 0 4px; }
+.assistant-welcome p { color: #aaa5b6; font-size: 13px; }
+.assistant-prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.assistant-prompts button, .assistant-citations button { text-align: left; border: 1px solid #494354; border-radius: 8px; padding: 10px; font-size: 12px; }
+.assistant-prompts button:hover:enabled, .assistant-citations button:hover:enabled { background: #30243e; }
+.assistant-prompts button:disabled { opacity: .5; }
+.assistant-message { background: #1c1b23; border-radius: 10px; padding: 14px; margin-bottom: 12px; overflow-wrap: anywhere; }
+.assistant-message.user { margin-left: 32px; background: #30243e; }
+.assistant-message strong { color: #c7b2ec; font-size: 12px; }
+.assistant-message p { white-space: pre-wrap; font-size: 14px; line-height: 1.65; margin-top: 6px; }
+.assistant-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.assistant-composer label { font-size: 12px; }
+.assistant-composer textarea { display: block; width: 100%; background: #191820; border: 1px solid #494354; border-radius: 8px; padding: 10px; margin: 6px 0; resize: vertical; font-size: 14px; }
+.assistant-composer > div { display: flex; justify-content: space-between; gap: 8px; }
+.assistant-error { color: #f4a9a9; font-size: 13px; }
+@media (max-width: 600px) { .assistant-prompts { grid-template-columns: 1fr; } .assistant-dialog { padding: 18px; } }
 @media (max-width: 480px) {
   .header-inner { padding: 0 16px; gap: 8px; }.brand { font-size: 17px; }.dashboard-container { padding: 0 14px 10px; }.workspace-topbar { padding: 0 16px; }.workspace-topbar > span { gap: 8px; }.hero-heading { flex-direction: column; gap: 14px; }.hero h1 { font-size: 29px; }.hero-heading p { font-size: 13px; }.refresh-button { align-self: flex-start; }.review-summary-icon { display: none; }.review-summary { padding: 21px; }.review-summary-copy p { font-size: 12px; }.metric-card { padding: 18px 15px; }.metric-value { font-size: 25px; }.metric-heading { font-size: 12px; }.metric-detail { font-size: 10px; }
   .section-heading { gap: 12px; }.section-heading h2 { font-size: 17px; gap: 7px; }.section-heading p { display: none; }.export-button { height: 34px; }.report-toolbar { padding: 12px; }.report-currency { display: none; }.grouping-tabs { width: 100%; }.grouping-tabs [role="tab"] { flex: 1; font-size: 11px; padding: 5px 10px; }.filter-bar { flex-direction: column; padding: 13px 12px 0; }.employee-filter { align-self: flex-start; }.employee-filter select { min-width: 130px; }.search-field { flex: auto; }.claim-group { margin: 0 11px 13px; }.group-heading { padding: 13px; gap: 9px; }.group-avatar { width: 30px; height: 30px; font-size: 10px; }.group-name { font-size: 12px; }.group-amount { font-size: 13px; }.group-name small, .group-amount small { font-size: 10px; }.group-heading > svg { margin-left: 0; }.claim-columns, .claim-row { padding-left: 12px; padding-right: 12px; grid-template-columns: minmax(0, 1fr) 80px; gap: 8px; }.claim-identity .claim-category-icon { display: none; }.claim-identity strong { font-size: 12px; gap: 5px; }.claim-identity small { font-size: 10px; }.claim-badges { padding-left: 0; }.claim-amount { font-size: 12px; gap: 5px; }.rule-badge { font-size: 9px; padding: 2px 5px; }

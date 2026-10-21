@@ -255,3 +255,7 @@ GitHub Actions runs pytest on Ubuntu with Python 3.11 for pull requests targetin
 and type-checks/builds the frontend. View results and failure logs in the PR checks or
 the repository's **Actions** tab. The workflow is defined in
 [tests.yml](.github/workflows/tests.yml).
+
+The reviewer dashboard also includes an optional report assistant for questions
+about flags, policy rules, and spending patterns. See the
+[frontend setup guide](frontend/README.md#report-assistant) to configure its API key.

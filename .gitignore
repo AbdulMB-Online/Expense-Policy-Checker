@@ -7,3 +7,6 @@ node_modules/
 frontend/dist/
 *.tsbuildinfo
 /artifacts/
+.env
+.env.*
+!.env.example
