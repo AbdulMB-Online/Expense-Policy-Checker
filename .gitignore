@@ -10,3 +10,4 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+.coverage

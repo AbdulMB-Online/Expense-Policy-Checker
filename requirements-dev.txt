@@ -1,4 +1,5 @@
 pytest>=8,<10
+pytest-cov>=7.1.0
 -r requirements-web.txt
 httpx>=0.28,<1
 ruff==0.17.1
