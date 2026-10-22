@@ -47,6 +47,7 @@ After installing `requirements-dev.txt`, run the backend checks with:
 
 ```sh
 python3 -m pytest -q
+python3 -m pytest --cov=backend --cov-report=term-missing -q
 python3 -m ruff check backend
 python3 -m ruff format --check backend
 ```
@@ -239,9 +240,10 @@ with no flags says "No violations detected by the configured checks."
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m pytest
+.venv/bin/python -m pytest --cov=backend --cov-report=term-missing
 ```
 
-Report tests cover both groupings, every reason, exact totals, overlapping rule
+The coverage command measures the `backend` package only. Report tests cover both groupings, every reason, exact totals, overlapping rule
 groups, rejected rows, empty results, and integration with the committed sample.
 Engine tests cover limit boundaries, receipt modes, configurable duplicates,
 multiple violations, and compatibility between the two result interfaces.
